@@ -28,7 +28,7 @@ function draw(o) {
 	ctx.beginPath();
 	if(o instanceof Point) {
 		log("DrawDot: " + o);
-		ctx.arc(o.x,o.y,2,0,2*Math.PI);
+		ctx.arc(o.x,o.y,4,0,2*Math.PI);
 		ctx.stroke();
 		ctx.fill();
 	} else if(o instanceof Vector) {

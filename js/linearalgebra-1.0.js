@@ -1,6 +1,11 @@
 function Point(x,y) {
-	this.x = x;
-	this.y = y;
+	if(x instanceof Point) {
+		this.x = x.x;
+		this.y = x.y;
+	} else {
+		this.x = x;
+		this.y = y;		
+	}
 }
 Point.ORIGIN = new Point(0,0);
 Point.prototype.toString = function() {
@@ -8,7 +13,10 @@ Point.prototype.toString = function() {
 };
 
 function Vector(o,t) {
-	if(o instanceof Point) {
+	if(o instanceof Vector) {
+		this.o = new Point(o.o);
+		this.t = new Point(o.t);
+	} else if(o instanceof Point) {
 		if(!t){
 			t = o;
 			o = new Point(0,0);
@@ -43,6 +51,13 @@ Vector.prototype.mag = function() {
 Vector.prototype.magsq = function() {
 	return (this.dx * this.dx) + (this.dy * this.dy);
 };
+Vector.prototype.rotate = function(rad) {
+	rad += Math.PI;
+	var angle = Math.atan2(this.dy,this.dx);
+	var newx = this.o.x-this.mag()*Math.cos(angle-rad)
+	var newy = this.o.y-this.mag()*Math.sin(angle-rad)
+	return new Vector(new Point(this.o), new Point(newx,newy));
+};
 Vector.prototype.terminus = function() {
 	return new Point(this.dx,this.dy);
 };
@@ -54,11 +69,22 @@ Vector.prototype.toString = function() {
 };
 
 function Line(o,dx,dy) {
-	this.o = o;
-	this.dx = dx;
-	this.dy = dy;
-	this.t = new Point(o.x + dx,o.y + dy);
-	this.v = new Vector(o,this.t);
+	if(o instanceof Line) {
+		this.o = new Point(o.o);
+		this.dx = o.dx;
+		this.dy = o.dy;
+	} else {
+		this.o = o;
+		if(dx instanceof Vector) {
+			this.dx = dx.dx;
+			this.dy = dx.dy;
+		} else {
+			this.dx = dx;
+			this.dy = dy;
+		}
+	}
+	this.t = new Point(this.o.x + this.dx,this.o.y + this.dy);
+	this.v = new Vector(this.o,this.t);	
 }
 Line.prototype.reflect = function(p) {
 	var vop = new Vector(this.o,p);
@@ -68,83 +94,104 @@ Line.prototype.reflect = function(p) {
 	var v0d = v0p.add(vpd);
 	return v0d.terminus();
 };
+Line.prototype.intersect = function(ln) {
+	if(this.dx === 0) {
+		if(ln.dx === 0) {
+			throw "No intersection";
+		} else {
+			return new Point(this.o.x,(ln.dy/ln.dx)*(this.o.x-ln.o.x)+ln.o.y);
+		}
+	}
+	if(ln.dx === 0) {
+		return new Point(ln.o.x,(this.dy/this.dx)*(ln.o.x-this.o.x)+this.o.y);
+	}
+	var sl1 = this.dy/this.dx;
+	var sl2 = ln.dy/ln.dx;
+	if(sl1 == sl2) {
+		throw "No intersection";
+	} else {
+		var xi1 = this.o.y - (sl1 * this.o.x);
+		var xi2 = ln.o.y - (sl2 * ln.o.x);
+		var x = (xi2-xi1) / (sl1-sl2);
+		var y = (sl1*x)+xi1;
+		return new Point(x,y);
+	}
+};
 Line.prototype.toString = function() {
 	return "o" + this.o + "->[" + this.dx + ", " + this.dy + "]";
 };
 
-
-function curve2() {
-	var a = points[points.length-3];
-	var b = points[points.length-2];
-	var c = points[points.length-1];
-	var ab = subPt(a,b);
-	var cb = subPt(c,b);
-	var len = mag(a,b);
-	var d = addPt(c,mulPt(subPt(mulPt(ab,dot(ab,cb)/(len*len)),cb),2));
-	drawDot(d.x,d.y);
-	var tri = PPP(a,d,b);
-	quadLine(tri);
+function Matrix(o) {
+	if(o instanceof Matrix) {
+		this.data = o.data;
+	} else {
+		this.data = o;
+	}
+	this.h = this.data.length;
+	this.w = this.data[0].length;
 }
+Matrix.prototype.row = function(k) {
+	return this.data[k];
+};
+Matrix.prototype.col = function(k) {
+	var ret = [];
+	for(var y=0;y<this.data.length;y++){
+		ret.push(this.data[y][k]);
+	}
+	return ret;
+};
+Matrix.prototype.mul = function(m) {
+	var newdata = [],x,y;
+	if(m instanceof Matrix) {
+		var rowa, colb, rowc,sum;
+		for(y=0;y<this.h;y++) {
+			rowa = this.row(y);
+			rowc = [];
+			for(x=0;x<m.w;x++) {
+				sum = 0;
+				colb = m.col(x);
+				for(var i=0;i<this.w;i++) {
+					sum += rowa[i] * colb[i];
+				}
+				rowc.push(sum);
+			}
+			newdata.push(rowc);
+		}
+		return new Matrix(newdata);
+	} else {
+		var row;
+		for(y=0;y<this.h;y++) {
+			row = [];
+			for(x=0;x<this.w;x++) {
+				row.push(m*this.data[y][x]);
+			}
+			newdata.push(row);
+		}
+		return new Matrix(newdata);
+	}
+};
+Matrix.prototype.toString = function() {
+	var s = "{\n";
+	for(var i=0;i<this.data.length;i++) {
+		s += this.data[i].toString() + "\n";
+	}
+	s += "}";
+	return s;
+};
 
-function divPt(pt,d) {
-	return mulPt(pt,1/d);
-}
-
-function mulPt(pt,m) {
-	return {"x":pt.x*m,"y":pt.y*m};
-}
-
-function addPt(pt1,pt2) {
-	return {"x":pt1.x+pt2.x,"y":pt1.y+pt2.y};
-}
-
-function subPt(pt1,pt2) {
-	return {"x":pt1.x-pt2.x,"y":pt1.y-pt2.y};
-}
-
-function dot(pt1,pt2) {
-	return (pt1.x*pt2.x) + (pt1.y*pt2.y);
-}
-
-function mag(pt1,pt2) {
-	var len = (pt1.x - pt2.x) * (pt1.x - pt2.x);
-	len += (pt1.y - pt2.y) * (pt1.y - pt2.y);
-	return Math.sqrt(len);
-}
-
-function curve1() {
-	var nextpt = points[points.length-1];
-	var thispt = points[points.length-2];
-	var prevpt = points[points.length-3];
-	var tri = PPP(prevpt,thispt,nextpt);
-	var len = mag(prevpt,thispt);
-	var halfpt = {"x":(nextpt.x + thispt.x)/2,"y":(nextpt.y + thispt.y)/2};
-	var rad = Math.acos((nextpt.x - thispt.x)/len) + (Math.PI/2);
-	drawTri([prevpt,thispt,nextpt]);
-	drawDot(halfpt.x,halfpt.y);
-	drawText(((180 - tri.degb) / 180),20,20);
-	halfpt.x += Math.cos(rad) * (len * ((180 - tri.degb) / 180));
-	halfpt.y += Math.sin(rad) * (len * ((180 - tri.degb) / 180));
-	drawDot(halfpt.x,halfpt.y);
-	var tri2 = PPP(thispt,halfpt,nextpt);
-	quadLine(tri2);
-}
-
-function PPP(a,b,c) {
+function Triangle(a,b,c) {
 	var abx = a.x - b.x, acx = a.x - c.x, bcx = b.x - c.x;
 	var aby = a.y - b.y, acy = a.y - c.y, bcy = b.y - c.y;
-	var r = {};
-	r.a = a;
-	r.b = b;
-	r.c = c;
-	r.lena = Math.sqrt((bcx * bcx) + (bcy * bcy));
-	r.lenb = Math.sqrt((acx * acx) + (acy * acy));
-	r.lenc = Math.sqrt((abx * abx) + (aby * aby));
-	r.rada = Math.acos(((r.lenb * r.lenb) + (r.lenc * r.lenc) - (r.lena * r.lena))/(2 * r.lenb * r.lenc));
-	r.radb = Math.acos(((r.lena * r.lena) + (r.lenc * r.lenc) - (r.lenb * r.lenb))/(2 * r.lena * r.lenc));
-	r.radc = (Math.PI) - (r.rada + r.radb);
-	r.dega = r.rada * (180 / Math.PI);
-	r.degb = r.radb * (180 / Math.PI);
-	r.degc = r.radc * (180 / Math.PI);
-	return r;
+	this.a = a;
+	this.b = b;
+	this.c = c;
+	this.lena = Math.sqrt((bcx * bcx) + (bcy * bcy));
+	this.lenb = Math.sqrt((acx * acx) + (acy * acy));
+	this.lenc = Math.sqrt((abx * abx) + (aby * aby));
+	this.rada = Math.acos(((this.lenb * this.lenb) + (this.lenc * this.lenc) - (this.lena * this.lena))/(2 * this.lenb * this.lenc));
+	this.radb = Math.acos(((this.lena * this.lena) + (this.lenc * this.lenc) - (this.lenb * this.lenb))/(2 * this.lena * this.lenc));
+	this.radc = (Math.PI) - (this.rada + this.radb);
+	this.dega = this.rada * (180 / Math.PI);
+	this.degb = this.radb * (180 / Math.PI);
+	this.degc = this.radc * (180 / Math.PI);
 }

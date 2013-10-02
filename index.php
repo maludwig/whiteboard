@@ -11,7 +11,8 @@
 	<script type="text/javascript">
 		var pts = [];
 		function log(msg) {
-			//$("#footer").append('<p>' + msg + '</p>');
+			msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
+			$("#footer").append(msg);
 		}
 		$(window).load(function(){
 			initCtx('#whiteboard');
@@ -22,12 +23,58 @@
 				var p = new Point(x,y);
 				pts.push(p);
 				draw(p)
-				if(pts.length % 2 == 0) {
-					draw(new Vector(p,pts[pts.length-2]));
-					draw(new Line(new Point(100,100),p.x-pts[pts.length-2].x,p.y-pts[pts.length-2].y));
+				if(pts.length % 4 == 0) {
+					var p1 = pts[pts.length-4];
+					var p2 = pts[pts.length-3];
+					var p3 = pts[pts.length-2];
+					var p4 = pts[pts.length-1];
+					var v13 = new Vector(p1,p3);
+					var v24 = new Vector(p2,p4);
+					var ln1 = new Line(p2,v13);
+					var ln2 = new Line(p3,v24);
+					draw(ln1);
+					draw(ln2);
+					draw(ln1.intersect(ln2));
+					//draw(new Line(new Point(100,100),p.x-pts[pts.length-2].x,p.y-pts[pts.length-2].y));
 				}
 			});
 			return;
+			var ln = new Line(new Point(450,650),0,12);
+			var ln2 = new Line(new Point(550,450),0.01,-1);
+			draw(ln);
+			draw(ln2);
+			draw(ln2.intersect(ln));
+			var m = new Matrix([[1,2],[3,4]]);
+			var m2 = new Matrix([[1,2],[3,4]]);
+			log(m);
+			log(m.col(0));
+			log(m.col(1));
+			log(m.col(2));
+			
+			log(m.row(1));
+			log(m.mul(m2));
+			
+			var m3 = new Matrix([[1,0,-2],[0,3,-1]]);
+			var m4 = new Matrix([[0,3],[-2,-1],[0,4]]);
+			
+			log(m3);
+			log(m4);
+			log(m3.mul(m4));
+			log(m3.mul(5));
+			log(m4.mul(5));
+			$("#overlay").mousemove(function(e){
+				var x = e.pageX - $("#whiteboard").offset().left;
+				var y = e.pageY - $("#whiteboard").offset().top;
+				var pt = new Point(x,y);
+				var ln = new Line(Point.ORIGIN,1,1);
+				var ln2 = new Line(new Point(450,450),1,-1);
+				draw(pt);
+				draw(ln.reflect(pt));
+				draw(ln2.reflect(pt));
+				draw(ln.reflect(ln2.reflect(pt)));
+				draw(ln);
+				draw(ln2);
+			});
 			
 			var mdown = false;
 			var lastpt;
@@ -76,41 +123,6 @@
 		}
 		
 		/*
-		$(window).load(function() {
-			$("#whiteboard").attr({
-				width: 900,
-				height: 900
-			});
-			$("#overlay").mousedown(function(){
-				$("#footer").append("Down");
-				mdown = true;
-				
-			});
-			$("#overlay").mouseup(function(e){
-				var x = e.pageX - $("#whiteboard").offset().left;
-				var y = e.pageY - $("#whiteboard").offset().top;
-				$("#footer").append("Up");
-				mdown = false;
-				lastpt = undefined;
-				//alert(JSON.stringify(PPP({x:0,y:0},{x:1,y:0},{x:1,y:1})))
-				points.push({"x":x,"y":y});
-				if(points.length >= 3) {
-					curve2();
-				}
-				drawDot(x,y);
-				drawText("blah",x + 30,y);
-			});
-			$("#overlay").mousemove(function(e){
-				if(mdown) {
-					icount++;
-					var x = e.pageX - $("#whiteboard").offset().left;
-					var y = e.pageY - $("#whiteboard").offset().top;
-					//drawLine(x,y);
-				}
-				$("#footer").html(icount);
-			});
-		});
-		
 		function curve2() {
 			var a = points[points.length-3];
 			var b = points[points.length-2];
@@ -122,32 +134,6 @@
 			drawDot(d.x,d.y);
 			var tri = PPP(a,d,b);
 			quadLine(tri);
-		}
-		
-		function divPt(pt,d) {
-			return mulPt(pt,1/d);
-		}
-		
-		function mulPt(pt,m) {
-			return {"x":pt.x*m,"y":pt.y*m};
-		}
-		
-		function addPt(pt1,pt2) {
-			return {"x":pt1.x+pt2.x,"y":pt1.y+pt2.y};
-		}
-		
-		function subPt(pt1,pt2) {
-			return {"x":pt1.x-pt2.x,"y":pt1.y-pt2.y};
-		}
-		
-		function dot(pt1,pt2) {
-			return (pt1.x*pt2.x) + (pt1.y*pt2.y);
-		}
-		
-		function mag(pt1,pt2) {
-			var len = (pt1.x - pt2.x) * (pt1.x - pt2.x);
-			len += (pt1.y - pt2.y) * (pt1.y - pt2.y);
-			return Math.sqrt(len);
 		}
 		
 		function curve1() {
@@ -180,65 +166,6 @@
 			} else {
 				alert('You need Safari or Firefox 1.5+ to see this demo.');
 			}
-		}
-		
-		function drawTri(p) {
-			var wb = $('#whiteboard')[0];
-			if (wb.getContext){
-				var ctx = wb.getContext('2d');
-				ctx.lineWidth = 1;
-				ctx.beginPath();
-				ctx.moveTo(p[0].x,p[0].y);
-				ctx.lineTo(p[1].x,p[1].y);
-				ctx.lineTo(p[2].x,p[2].y);
-				ctx.lineTo(p[0].x,p[0].y);
-				ctx.stroke();
-			} else {
-				alert('You need Safari or Firefox 1.5+ to see this demo.');
-			}
-		}
-		
-		
-		function drawLine(x, y) {
-			if(lastpt) {
-				var wb = $('#whiteboard')[0];
-				if (wb.getContext){
-					var ctx = wb.getContext('2d');
-					ctx.lineWidth = 1;
-					for (i=0;i<10;i++){
-						ctx.beginPath();
-						ctx.moveTo(lastpt.x,lastpt.y);
-						ctx.lineTo(x,y);
-						ctx.stroke();
-					}
-				} else {
-					alert('You need Safari or Firefox 1.5+ to see this demo.');
-				}
-			}
-			lastpt = {
-				"x":x,
-				"y":y
-			};
-		}
-		
-		
-		function PPP(a,b,c) {
-			var abx = a.x - b.x, acx = a.x - c.x, bcx = b.x - c.x;
-			var aby = a.y - b.y, acy = a.y - c.y, bcy = b.y - c.y;
-			var r = {};
-			r.a = a;
-			r.b = b;
-			r.c = c;
-			r.lena = Math.sqrt((bcx * bcx) + (bcy * bcy));
-			r.lenb = Math.sqrt((acx * acx) + (acy * acy));
-			r.lenc = Math.sqrt((abx * abx) + (aby * aby));
-			r.rada = Math.acos(((r.lenb * r.lenb) + (r.lenc * r.lenc) - (r.lena * r.lena))/(2 * r.lenb * r.lenc));
-			r.radb = Math.acos(((r.lena * r.lena) + (r.lenc * r.lenc) - (r.lenb * r.lenb))/(2 * r.lena * r.lenc));
-			r.radc = (Math.PI) - (r.rada + r.radb);
-			r.dega = r.rada * (180 / Math.PI);
-			r.degb = r.radb * (180 / Math.PI);
-			r.degc = r.radc * (180 / Math.PI);
-			return r;
 		}
 		
 		function drawText(msg,x,y) {

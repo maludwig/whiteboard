@@ -13,15 +13,20 @@ a img {
 	position: absolute;
 	left: 50px;
 	top: 50px;
-	width: 900px;
-	height: 900px;
+	width: 800px;
+	height: 800px;
 	border: 1px solid #444;
 }
 
 #overlay {
 	position: absolute;
-	width: 1000px;
-	height: 1000px;
+	width: 900px;
+	height: 900px;
 	border: 1px solid blue;
 	z-index: 100;
+}
+
+#footer {
+	float: right;
+	display: block;
 }
