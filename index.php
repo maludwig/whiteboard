@@ -6,6 +6,7 @@
 	<link rel="stylesheet" type="text/css" href="style.css" />
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
+	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
 	<script type="text/javascript">
 		var mdown = false;
 		var lastpt;
@@ -13,8 +14,8 @@
 		var points = [];
 		$(window).load(function() {
 			$("#whiteboard").attr({
-				width: 600,
-				height: 600
+				width: 900,
+				height: 900
 			});
 			$("#overlay").mousedown(function(){
 				$("#footer").append("Down");
@@ -29,27 +30,8 @@
 				lastpt = undefined;
 				//alert(JSON.stringify(PPP({x:0,y:0},{x:1,y:0},{x:1,y:1})))
 				points.push({"x":x,"y":y});
-				if(points.length == 3) {
-					drawTri(points);
-					var tri = PPP(points[0],points[1],points[2]);
-					drawText(Math.round(tri.dega),points[0].x,points[0].y - 20);
-					drawText(Math.round(tri.degb),points[1].x,points[1].y - 20);
-					drawText(Math.round(tri.degc),points[2].x,points[2].y - 20);
-					var avgx = (points[0].x + points[1].x + points[2].x) / 3;
-					var avgy = (points[0].y + points[1].y + points[2].y) / 3;
-					drawText((180 - tri.dega) / 180, avgx,avgy);
-					quadLine(tri);
-					var len = (points[0].x - points[1].x) * (points[0].x - points[1].x);
-					len += (points[0].y - points[1].y) * (points[0].y - points[1].y);
-					len = Math.sqrt(len);
-					var halfpt = {"x":(points[0].x + points[1].x)/2,"y":(points[0].y + points[1].y)/2};
-					drawDot(halfpt.x,halfpt.y);
-					var rad = Math.acos((points[0].x - points[1].x)/len) + (Math.PI/2);
-					halfpt.x += Math.cos(rad) * (len * ((180 - tri.dega) / 180));
-					halfpt.y += Math.sin(rad) * (len * ((180 - tri.dega) / 180));
-					drawDot(halfpt.x,halfpt.y);
-					var tri2 = PPP(points[0],halfpt,points[1]);
-					quadLine(tri2);
+				if(points.length >= 3) {
+					curve2();
 				}
 				drawDot(x,y);
 				drawText("blah",x + 30,y);
@@ -59,11 +41,68 @@
 					icount++;
 					var x = e.pageX - $("#whiteboard").offset().left;
 					var y = e.pageY - $("#whiteboard").offset().top;
-					drawLine(x,y);
+					//drawLine(x,y);
 				}
 				$("#footer").html(icount);
 			});
 		});
+		
+		function curve2() {
+			var a = points[points.length-3];
+			var b = points[points.length-2];
+			var c = points[points.length-1];
+			var ab = subPt(a,b);
+			var cb = subPt(c,b);
+			var len = mag(a,b);
+			var d = addPt(c,mulPt(subPt(mulPt(ab,dot(ab,cb)/(len*len)),cb),2));
+			drawDot(d.x,d.y);
+			var tri = PPP(a,d,b);
+			quadLine(tri);
+		}
+		
+		function divPt(pt,d) {
+			return mulPt(pt,1/d);
+		}
+		
+		function mulPt(pt,m) {
+			return {"x":pt.x*m,"y":pt.y*m};
+		}
+		
+		function addPt(pt1,pt2) {
+			return {"x":pt1.x+pt2.x,"y":pt1.y+pt2.y};
+		}
+		
+		function subPt(pt1,pt2) {
+			return {"x":pt1.x-pt2.x,"y":pt1.y-pt2.y};
+		}
+		
+		function dot(pt1,pt2) {
+			return (pt1.x*pt2.x) + (pt1.y*pt2.y);
+		}
+		
+		function mag(pt1,pt2) {
+			var len = (pt1.x - pt2.x) * (pt1.x - pt2.x);
+			len += (pt1.y - pt2.y) * (pt1.y - pt2.y);
+			return Math.sqrt(len);
+		}
+		
+		function curve1() {
+			var nextpt = points[points.length-1];
+			var thispt = points[points.length-2];
+			var prevpt = points[points.length-3];
+			var tri = PPP(prevpt,thispt,nextpt);
+			var len = mag(prevpt,thispt);
+			var halfpt = {"x":(nextpt.x + thispt.x)/2,"y":(nextpt.y + thispt.y)/2};
+			var rad = Math.acos((nextpt.x - thispt.x)/len) + (Math.PI/2);
+			drawTri([prevpt,thispt,nextpt]);
+			drawDot(halfpt.x,halfpt.y);
+			drawText(((180 - tri.degb) / 180),20,20);
+			halfpt.x += Math.cos(rad) * (len * ((180 - tri.degb) / 180));
+			halfpt.y += Math.sin(rad) * (len * ((180 - tri.degb) / 180));
+			drawDot(halfpt.x,halfpt.y);
+			var tri2 = PPP(thispt,halfpt,nextpt);
+			quadLine(tri2);
+		}
 		
 		function quadLine(tri) {
 			var wb = $('#whiteboard')[0];
