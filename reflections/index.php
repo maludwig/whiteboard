@@ -2,32 +2,44 @@
 <html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<title>Whiteboard</title>
+	<title>The title</title>
 	<link rel="stylesheet" type="text/css" href="style.css" />
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
 	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
-	<script type="text/javascript" src="js/drawing-1.0.js"></script>
 	<script type="text/javascript">
-		var pts = [];
+		var ctx;
 		function log(msg) {
 			//$("#footer").append('<p>' + msg + '</p>');
 		}
 		$(window).load(function(){
-			initCtx('#whiteboard');
-			drawGrid();
-			$("#overlay").mousedown(function(e){
-				var x = e.pageX - $("#whiteboard").offset().left;
-				var y = e.pageY - $("#whiteboard").offset().top;
-				var p = new Point(x,y);
-				pts.push(p);
-				draw(p)
-				if(pts.length % 2 == 0) {
-					draw(new Vector(p,pts[pts.length-2]));
-					draw(new Line(new Point(100,100),p.x-pts[pts.length-2].x,p.y-pts[pts.length-2].y));
+			var wb = $('#whiteboard')[0];
+			if (wb.getContext){
+				ctx = wb.getContext('2d');
+				$("#whiteboard").attr({
+					width: 900,
+					height: 900
+				});
+				laststyle = ctx.strokeStyle;
+				ctx.strokeStyle = "#AAF";
+				for(var i=0;i<900;i+=90) {
+					ctx.beginPath();
+					ctx.moveTo(i,0);
+					ctx.lineTo(i,900);
+					ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(0,i);
+					ctx.lineTo(900,i);
+					ctx.stroke();
 				}
-			});
-			return;
+				ctx.beginPath();
+				ctx.moveTo(0,0);
+				ctx.lineTo(900,900);
+				ctx.stroke();
+				
+			} else {
+				alert('You need Safari or Firefox 1.5+ to see this demo.');
+			}
 			
 			var mdown = false;
 			var lastpt;
