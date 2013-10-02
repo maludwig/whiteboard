@@ -2,10 +2,76 @@ function Point(x,y) {
 	this.x = x;
 	this.y = y;
 }
-
-Point.prototype.add = function(pt) {
-	return new Point(this.x + pt.x, this.y + pt.y);
+Point.ORIGIN = new Point(0,0);
+Point.prototype.toString = function() {
+	return "[" + this.x + ", " + this.y + "]";
 };
+
+function Vector(o,t) {
+	if(o instanceof Point) {
+		if(!t){
+			t = o;
+			o = new Point(0,0);
+		}
+		this.o = o;
+		this.t = t;
+	} else if (typeof o === "number") {
+		this.o = Point.ORIGIN;
+		this.t = new Point(o,t);
+	}
+	this.dx = this.t.x - this.o.x;
+	this.dy = this.t.y - this.o.y;
+}
+Vector.prototype.add = function(v) {
+	return new Vector(this.dx + v.dx, this.dy + v.dy);
+};
+Vector.prototype.sub = function(v) {
+	return new Vector(this.dx - v.dx, this.dy - v.dy);
+};
+Vector.prototype.mul = function(m) {
+	return new Vector(this.dx * m, this.dy * m);
+};
+Vector.prototype.div = function(d) {
+	return new Vector(this.dx / d, this.dy / d);
+};
+Vector.prototype.dot = function(v) {
+	return (this.dx * v.dx) + (this.dy * v.dy);
+};
+Vector.prototype.mag = function() {
+	return Math.sqrt((this.dx * this.dx) + (this.dy * this.dy));
+};
+Vector.prototype.magsq = function() {
+	return (this.dx * this.dx) + (this.dy * this.dy);
+};
+Vector.prototype.terminus = function() {
+	return new Point(this.dx,this.dy);
+};
+Vector.prototype.toPoint = function() {
+	return new Point(this.dx,this.dy);
+};
+Vector.prototype.toString = function() {
+	return "[" + this.dx + ", " + this.dy + "]";
+};
+
+function Line(o,dx,dy) {
+	this.o = o;
+	this.dx = dx;
+	this.dy = dy;
+	this.t = new Point(o.x + dx,o.y + dy);
+	this.v = new Vector(o,this.t);
+}
+Line.prototype.reflect = function(p) {
+	var vop = new Vector(this.o,p);
+	var v0p = new Vector(p);
+	var proj = this.v.mul(this.v.dot(vop)/this.v.magsq());
+	var vpd = proj.sub(vop).mul(2);
+	var v0d = v0p.add(vpd);
+	return v0d.terminus();
+};
+Line.prototype.toString = function() {
+	return "o" + this.o + "->[" + this.dx + ", " + this.dy + "]";
+};
+
 
 function curve2() {
 	var a = points[points.length-3];

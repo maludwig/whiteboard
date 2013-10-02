@@ -8,10 +8,86 @@
 	<script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
 	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
 	<script type="text/javascript">
-		var mdown = false;
-		var lastpt;
-		var icount = 0;
-		var points = [];
+		var ctx;
+		function log(msg) {
+			//$("#footer").append('<p>' + msg + '</p>');
+		}
+		$(window).load(function(){
+			var wb = $('#whiteboard')[0];
+			if (wb.getContext){
+				ctx = wb.getContext('2d');
+				$("#whiteboard").attr({
+					width: 900,
+					height: 900
+				});
+				laststyle = ctx.strokeStyle;
+				ctx.strokeStyle = "#AAF";
+				for(var i=0;i<900;i+=90) {
+					ctx.beginPath();
+					ctx.moveTo(i,0);
+					ctx.lineTo(i,900);
+					ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(0,i);
+					ctx.lineTo(900,i);
+					ctx.stroke();
+				}
+				ctx.beginPath();
+				ctx.moveTo(0,0);
+				ctx.lineTo(900,900);
+				ctx.stroke();
+				
+			} else {
+				alert('You need Safari or Firefox 1.5+ to see this demo.');
+			}
+			
+			var mdown = false;
+			var lastpt;
+			var icount = 0;
+			var points = [];
+			var pt1 = new Point(2,0);
+			var pt2 = new Point(1,1);
+			//alert(v12 instanceof Point);
+			//alert(v12 instanceof Vector);
+			log(new Vector(pt1));
+			log(new Vector(pt1,pt2));
+			var v1 = new Vector(2,3);
+			log(v1);
+			log(v1.add(v1));
+			log(v1.sub(v1));
+			log(v1.dot(new Vector(-2,3)));
+			log(v1.mul(0.5));
+			log(v1.mag());
+			log(v1.magsq());
+			var ln = new Line(pt2,0,1);
+			log(ln);
+			log(pt1 + " r " + ln.reflect(pt1));
+			log(pt2 + " r " + ln.reflect(pt2));
+			$("#overlay").mousemove(function(e){
+				var x = e.pageX - $("#whiteboard").offset().left;
+				var y = e.pageY - $("#whiteboard").offset().top;
+				var pt = new Point(x,y);
+				var ln = new Line(Point.ORIGIN,1,1);
+				drawDot(pt);
+				drawDot(ln.reflect(pt));
+			});
+		});
+		
+		function drawDot(x,y) {
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			if(x instanceof Point) {
+				ctx.arc(x.x,x.y,10,0,2*Math.PI);
+				log("DrawDot: [" + x.x + "," + x.y + "]");
+			} else {
+				ctx.arc(x,y,10,0,2*Math.PI);
+				log("DrawDot: [" + x + "," + y + "]");
+			}
+			ctx.stroke();
+			ctx.fill();
+		}
+		
+		/*
 		$(window).load(function() {
 			$("#whiteboard").attr({
 				width: 900,
@@ -157,22 +233,6 @@
 			};
 		}
 		
-		function drawDot(x,y) {
-			var wb = $('#whiteboard')[0];
-			if (wb.getContext){
-				var ctx = wb.getContext('2d');
-				ctx.lineWidth = 1;
-				for (i=0;i<10;i++){
-					ctx.beginPath();
-					ctx.arc(x,y,10,0,2*Math.PI);
-					ctx.stroke();
-					ctx.fill();
-				}
-			} else {
-				alert('You need Safari or Firefox 1.5+ to see this demo.');
-			}
-			
-		}
 		
 		function PPP(a,b,c) {
 			var abx = a.x - b.x, acx = a.x - c.x, bcx = b.x - c.x;
@@ -204,6 +264,7 @@
 			}
 			
 		}
+		*/
 	</script>
 </head>
 
