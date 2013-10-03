@@ -1,8 +1,3 @@
-/*jshint -W117 */
-/*jshint -W098 */
-
-var verbose = false;
-
 function Point(x,y) {
 	if(x instanceof Point) {
 		this.x = x.x;
@@ -11,7 +6,6 @@ function Point(x,y) {
 		this.x = x;
 		this.y = y;		
 	}
-	if(verbose) {if(typeof draw !== 'undefined'){draw(this);}}
 }
 Point.ORIGIN = new Point(0,0);
 Point.prototype.midpoint = function(p) {
@@ -41,7 +35,6 @@ function Vector(o,t) {
 	}
 	this.dx = this.t.x - this.o.x;
 	this.dy = this.t.y - this.o.y;
-	if(verbose) {if(typeof draw !== 'undefined'){draw(this);}}
 }
 Vector.prototype.add = function(v) {
 	return new Vector(this.dx + v.dx, this.dy + v.dy);
@@ -125,7 +118,6 @@ function Line(o,dx,dy) {
 	}
 	this.t = new Point(this.o.x + this.dx,this.o.y + this.dy);
 	this.v = new Vector(this.o,this.t);	
-	if(verbose) {if(typeof draw !== 'undefined'){draw(this);}}
 }
 Line.prototype.reflect = function(p) {
 	if(p instanceof Point) {

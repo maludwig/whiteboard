@@ -1,34 +1,8 @@
-/*jshint -W117 */
-/*jshint -W098 */
 var cv;
 var ctx;
 var h;
 var w;
-var drawColor;
-
-function setColor(c) {
-	c = typeof c !== 'undefined' ? c : drawColor;
-	drawColor = c
-	ctx.strokeStyle = c;
-	ctx.fillStyle = c;
-	$("#tools,#bgs").css({color:c});
-	$(".size").css({background:c});
-}
-
-function eraser() {
-	ctx.globalCompositeOperation = "destination-out";
-	ctx.strokeStyle = "rgba(0,0,0,1)";
-}
-
-function highlighter() {
-	ctx.globalCompositeOperation = "darker";
-	setColor();
-}
-
-function pen() {
-	ctx.globalCompositeOperation = "source-over";
-	setColor();
-}
+var $ = jQuery;
 
 function initCtx(c) {
 	if(typeof c === "string") {
@@ -44,8 +18,6 @@ function initCtx(c) {
 	w = $(cv).width();
 	if (cv.getContext){
 		ctx = cv.getContext('2d');
-		ctx.lineWidth = 2;
-		setColor("#1F7ABD");
 	} else {
 		alert('You need canvas support to view this correctly.');
 		ctx = undefined;
@@ -57,12 +29,8 @@ function draw(o, pt) {
 	ctx.beginPath();
 	if(o instanceof Point) {
 		log("DrawDot: " + o);
-		/*
-		ctx.moveTo(o.x,o.y);
-		ctx.lineTo(o.x+1,o.y);
+		ctx.arc(o.x,o.y,4,0,2*Math.PI);
 		ctx.stroke();
-		*/
-		ctx.arc(o.x,o.y,ctx.lineWidth/2,0,2*Math.PI);
 		ctx.fill();
 	} else if(o instanceof Vector) {
 		log("DrawVector: " + o);
@@ -76,10 +44,10 @@ function draw(o, pt) {
 		ctx.stroke();
 	} else if(o instanceof Line) {
 		log("DrawLine: " + o);
-		if(o.dx === 0) {
+		if(o.dx == 0) {
 			ctx.moveTo(o.o.x, 0);
 			ctx.lineTo(o.t.x, h);
-		} else if(o.dy === 0) {
+		} else if(o.dy == 0) {
 			ctx.moveTo(0, o.o.y);
 			ctx.lineTo(w, o.t.y);
 		} else {
@@ -117,24 +85,14 @@ function draw(o, pt) {
 
 function Pretty() {
 	this.pts = [];
-	this.magsum = 0;
 }
 Pretty.prototype.addPoint = function(p) {
-	if(this.pts.length > 0) {
-		var v = new Vector(this.pts[this.pts.length-1],p);
-		this.magsum += v.mag();
-		if(this.magsum > 30) {
-			this.pts.push(p);
-			this.magsum = 0;
-			var k = this.pts.length;
-			if(k === 3) {
-				prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
-			} else if (k > 3) {
-				pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
-			}
-		}
-	} else {
-		this.pts.push(p);
+	this.pts.push(p);
+	var k = this.pts.length;
+	if(k === 3) {
+		prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
+	} else if (k > 3) {
+		pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
 	}
 };
 Pretty.prototype.endLine = function() {
@@ -143,6 +101,16 @@ Pretty.prototype.endLine = function() {
 		prettyEnd(this.pts[k-1],this.pts[k-2],this.pts[k-3]);
 	}
 };
+
+function prettyLine(pts) {
+	if(pts.length > 2) {
+		prettyEnd(pts[0],pts[1],pts[2]);
+		for(var i=2;i<pts.length-1;i++) {
+			pretty4(pts[i-2],pts[i-1],pts[i],pts[i+1]);
+		}
+		prettyEnd(pts[pts.length-1],pts[pts.length-2],pts[pts.length-3]);
+	}
+}
 
 function pretty4(pt1,pt2,pt3,pt4) {
 	var v13 = new Vector(pt1,pt3);
@@ -158,7 +126,6 @@ function pretty4(pt1,pt2,pt3,pt4) {
 	ctx.moveTo(pt2.x,pt2.y);
 	ctx.bezierCurveTo(bp1.x,bp1.y,bp2.x,bp2.y,pt3.x,pt3.y);
 	ctx.stroke();
-	draw(pt3);
 }
 
 function prettyEnd(pt1,pt2,pt3) {
@@ -174,26 +141,20 @@ function prettyEnd(pt1,pt2,pt3) {
 	ctx.moveTo(pt2.x,pt2.y);
 	ctx.bezierCurveTo(bp1.x,bp1.y,bp2.x,bp2.y,pt1.x,pt1.y);
 	ctx.stroke();
-	draw(pt1);
-	draw(pt2);
 }
 
-function drawGrid(sz,strokeStyle,lineWidth) {
-	var i;
+function drawGrid(sz,style) {
 	sz = typeof sz !== 'undefined' ? sz : 30;
-	strokeStyle = typeof style !== 'undefined' ? style : "#AAF";
-	lineWidth = typeof style !== 'undefined' ? style : 1;
-	var lastStrokeStyle = ctx.strokeStyle;
-	ctx.strokeStyle = strokeStyle;
-	var lastLineWidth = ctx.lineWidth;
-	ctx.lineWidth = lineWidth;
-	for(i=0;i<w;i+=sz) {
+	style = typeof style !== 'undefined' ? style : "#AAF";
+	var laststyle = ctx.strokeStyle;
+	ctx.strokeStyle = style;
+	for(var i=0;i<w;i+=sz) {
 		ctx.beginPath();
 		ctx.moveTo(i,0);
 		ctx.lineTo(i,h);
 		ctx.stroke();
 	}
-	for(i=0;i<h;i+=sz) {
+	for(var i=0;i<h;i+=sz) {
 		ctx.beginPath();
 		ctx.moveTo(0,i);
 		ctx.lineTo(w,i);
@@ -203,8 +164,7 @@ function drawGrid(sz,strokeStyle,lineWidth) {
 	ctx.moveTo(0,0);
 	ctx.lineTo(Math.min(w,h),Math.min(w,h));
 	ctx.stroke();
-	ctx.strokeStyle = lastStrokeStyle;
-	ctx.lineWidth = lastLineWidth;
+	ctx.strokeStyle = laststyle;
 }
 
 function clearDrawing(redrawGrid) {
@@ -213,7 +173,5 @@ function clearDrawing(redrawGrid) {
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.clearRect(0, 0, cv.width, cv.height);
 	ctx.restore();
-	if(redrawGrid) {
-		drawGrid();
-	}
+	drawGrid();
 }
