@@ -1,12 +1,32 @@
 <?php
-	if(noneEmpty('action','hash')) {
-		echo $_REQUEST['action'];
-	} else {
-		echo "Malformed request";
+require_once "sqliboard.php";
+Board::insert();
+exit();
+if(noneEmpty('action','hash')) {
+	echo $_REQUEST['action'];
+} else {
+	echo "Malformed request";
+}
+
+
+
+		
+function getBoardID($shorthash) {
+	$shorthash = str_pad($shorthash,8,"0");
+	//Using the global $mysqli connection
+	$mysqli = $GLOBALS['mysqli'];
+	$query = "SELECT id FROM boards WHERE shorthash=0x" . $mysqli->real_escape_string(shorthash);
+	$result = $mysqli->query($query);
+	if (!$result) {
+		throw new Exception($mysqli->error);
 	}
-
-
-
+	if ($result->num_rows > 0) {
+		$row = $result->fetch_assoc();
+		return $row['id'];
+	} else {
+		throw new Exception('User not found');
+	}
+}
 
 function allSet() {
 	$args = func_get_args();

@@ -10,23 +10,6 @@
 			die('Connect Error [' . $GLOBALS['mysqli']->connect_errno . '] ' . $GLOBALS['mysqli']->connect_error);
 		}
 		
-		function getBoardID($shorthash) {
-			$shorthash = str_pad($shorthash,8,"0");
-			//Using the global $mysqli connection
-			$mysqli = $GLOBALS['mysqli'];
-			$query = "SELECT id FROM boards WHERE shorthash=0x" . $mysqli->real_escape_string(shorthash);
-			$result = $mysqli->query($query);
-			if (!$result) {
-				throw new Exception($mysqli->error);
-			}
-			if ($result->num_rows > 0) {
-				$row = $result->fetch_assoc();
-				return $row['id'];
-			} else {
-				throw new Exception('User not found');
-			}
-		}
-		
 		/* Inserts a row into a table
 			$tablename = A string containing the name of the table
 			$columns = An array containing the names of the columns to insert into

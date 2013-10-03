@@ -64,6 +64,13 @@ a img {
 #sidebar p {
 	text-align: center;
 }
+
+#sidebar h3 {
+	text-align: center;
+	font-family: 'Julius Sans One', sans-serif;
+	font-size: 24px;
+}
+
 #sidebar hr {
 	clear:both;
 }
@@ -109,7 +116,7 @@ a img {
 #palexpand {
 	position: absolute;
 	right: 0;
-	top: 80px;
+	top: 74px;
 	border: 1px solid #CCC;
 	padding: 3px;
 	margin: 3px;

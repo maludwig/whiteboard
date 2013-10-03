@@ -6,6 +6,7 @@
 	<title>Whiteboard</title>
 	<link rel="stylesheet" type="text/css" href="style.css" />
 	<link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet">
+	<link href='http://fonts.googleapis.com/css?family=Julius+Sans+One' rel='stylesheet' type='text/css'>
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
@@ -35,7 +36,7 @@
 <body>
 	<div id="sidebar" class="open">
 		<div id="sideexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
-		<p>Whiteboard</p>
+		<h3>Whiteboard</h3>
 		<hr />
 		<div id="palettes">
 			<div id="palexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
