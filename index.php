@@ -10,6 +10,8 @@
 	<script type="text/javascript" src="js/drawing-1.0.js"></script>
 	<script type="text/javascript">
 		var pts = [];
+		var lastx;
+		var lasty;
 		function log(msg) {
 			msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
 			$("#footer").append(msg);
@@ -17,25 +19,19 @@
 		$(window).load(function(){
 			initCtx('#whiteboard');
 			drawGrid();
-			$("#overlay").mousedown(function(e){
+			$("#overlay").mousemove(function(e){
 				var x = e.pageX - $("#whiteboard").offset().left;
 				var y = e.pageY - $("#whiteboard").offset().top;
+				x = x - (x % 30) + 15;
+				y = y - (y % 30) + 15;
+				if(x == lastx && y == lasty) return;
+				lastx = x;
+				lasty = y;
 				var p = new Point(x,y);
 				pts.push(p);
-				draw(p)
-				if(pts.length % 4 == 0) {
-					var p1 = pts[pts.length-4];
-					var p2 = pts[pts.length-3];
-					var p3 = pts[pts.length-2];
-					var p4 = pts[pts.length-1];
-					var v13 = new Vector(p1,p3);
-					var v24 = new Vector(p2,p4);
-					var ln1 = new Line(p2,v13);
-					var ln2 = new Line(p3,v24);
-					draw(ln1);
-					draw(ln2);
-					draw(ln1.intersect(ln2));
-					//draw(new Line(new Point(100,100),p.x-pts[pts.length-2].x,p.y-pts[pts.length-2].y));
+				draw(p);
+				if(pts.length > 3) {
+					prettyLine(pts);
 				}
 			});
 			return;
@@ -108,20 +104,6 @@
 			});
 		});
 		
-		function drawDot(x,y) {
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			if(x instanceof Point) {
-				ctx.arc(x.x,x.y,10,0,2*Math.PI);
-				log("DrawDot: [" + x.x + "," + x.y + "]");
-			} else {
-				ctx.arc(x,y,10,0,2*Math.PI);
-				log("DrawDot: [" + x + "," + y + "]");
-			}
-			ctx.stroke();
-			ctx.fill();
-		}
-		
 		/*
 		function curve2() {
 			var a = points[points.length-3];
@@ -166,18 +148,6 @@
 			} else {
 				alert('You need Safari or Firefox 1.5+ to see this demo.');
 			}
-		}
-		
-		function drawText(msg,x,y) {
-			var canvas = $('#whiteboard')[0];
-			if (canvas.getContext){
-				var ctx = canvas.getContext('2d');
-				ctx.font="16px Arial";
-				ctx.fillText(msg,x,y);
-			} else {
-				alert('You need Safari or Firefox 1.5+ to see this demo.');
-			}
-			
 		}
 		*/
 	</script>

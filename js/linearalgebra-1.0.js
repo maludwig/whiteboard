@@ -8,6 +8,12 @@ function Point(x,y) {
 	}
 }
 Point.ORIGIN = new Point(0,0);
+Point.prototype.midpoint = function(p) {
+	return new Point((this.x + p.x)/2,(this.y + p.y)/2);
+};
+Point.prototype.add = function(v) {
+	return new Point(this.x + v.dx, this.y + v.dy);
+};
 Point.prototype.toString = function() {
 	return "[" + this.x + ", " + this.y + "]";
 };
@@ -53,10 +59,23 @@ Vector.prototype.magsq = function() {
 };
 Vector.prototype.rotate = function(rad) {
 	rad += Math.PI;
-	var angle = Math.atan2(this.dy,this.dx);
-	var newx = this.o.x-this.mag()*Math.cos(angle-rad)
-	var newy = this.o.y-this.mag()*Math.sin(angle-rad)
+	var angle = this.angle();
+	var newx = this.o.x-this.mag()*Math.cos(angle-rad);
+	var newy = this.o.y-this.mag()*Math.sin(angle-rad);
 	return new Vector(new Point(this.o), new Point(newx,newy));
+};
+Vector.prototype.angle = function() {
+	return Math.atan2(this.dy,this.dx);
+};
+Vector.prototype.angleFrom = function(v) {
+	var a = this.angle() - v.angle();
+	if(a > Math.PI) {
+		a = (-2*Math.PI) + a;
+	}
+	if(a < -Math.PI) {
+		a = (2*Math.PI) + a;
+	}
+	return a;
 };
 Vector.prototype.terminus = function() {
 	return new Point(this.dx,this.dy);
@@ -78,6 +97,13 @@ function Line(o,dx,dy) {
 		if(dx instanceof Vector) {
 			this.dx = dx.dx;
 			this.dy = dx.dy;
+		} else if(dx instanceof Point) {
+			if(!dy) {
+				dy = dx;
+				dx = o;
+			}
+			this.dx = dx.x - dy.x;
+			this.dy = dx.y - dy.y;
 		} else {
 			this.dx = dx;
 			this.dy = dy;
@@ -93,6 +119,12 @@ Line.prototype.reflect = function(p) {
 	var vpd = proj.sub(vop).mul(2);
 	var v0d = v0p.add(vpd);
 	return v0d.terminus();
+};
+Line.prototype.rotate = function(rad) {
+	return new Line(new Point(this.o), this.v.rotate(rad));
+};
+Vector.prototype.angle = function() {
+	return Math.atan2(this.dy,this.dx);
 };
 Line.prototype.intersect = function(ln) {
 	if(this.dx === 0) {
@@ -195,3 +227,5 @@ function Triangle(a,b,c) {
 	this.degb = this.radb * (180 / Math.PI);
 	this.degc = this.radc * (180 / Math.PI);
 }
+
+function sign(x) { return x > 0 ? 1 : x < 0 ? -1 : 0; }
