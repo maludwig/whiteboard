@@ -12,95 +12,52 @@
 		var pts = [];
 		var lastx;
 		var lasty;
+		var mousebtns = {left: false, right: false, mid: false};
+		var skip10 = 0;
 		function log(msg) {
 			msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
-			$("#footer").append(msg);
+			//$("#footer").append(msg);
 		}
 		$(window).load(function(){
 			initCtx('#whiteboard');
 			drawGrid();
+			$("#overlay").mousedown(function(e){
+				if(e.which == 1) {
+					mousebtns.left = true;
+				} else if (e.which == 2) {
+					mousebtns.mid = true;
+				} else if (e.which == 3) {
+					mousebtns.right = true;
+				}
+			});
+			$("#overlay").mouseup(function(e){
+				if(e.which == 1) {
+					mousebtns.left = false;
+				} else if (e.which == 2) {
+					mousebtns.mid = false;
+				} else if (e.which == 3) {
+					mousebtns.right = false;
+				}
+				if(pts.length > 2) {
+					prettyLine(pts);
+				}
+				pts = [];
+			});
 			$("#overlay").mousemove(function(e){
+				if(!mousebtns.left) return;
 				var x = e.pageX - $("#whiteboard").offset().left;
 				var y = e.pageY - $("#whiteboard").offset().top;
 				x = x - (x % 30) + 15;
 				y = y - (y % 30) + 15;
 				if(x == lastx && y == lasty) return;
+				skip10++;
+				if(skip10 < 20) return;
+				skip10 = 0;
 				lastx = x;
 				lasty = y;
 				var p = new Point(x,y);
 				pts.push(p);
 				draw(p);
-				if(pts.length > 3) {
-					prettyLine(pts);
-				}
-			});
-			return;
-			var ln = new Line(new Point(450,650),0,12);
-			var ln2 = new Line(new Point(550,450),0.01,-1);
-			draw(ln);
-			draw(ln2);
-			draw(ln2.intersect(ln));
-			var m = new Matrix([[1,2],[3,4]]);
-			var m2 = new Matrix([[1,2],[3,4]]);
-			log(m);
-			log(m.col(0));
-			log(m.col(1));
-			log(m.col(2));
-			
-			log(m.row(1));
-			log(m.mul(m2));
-			
-			var m3 = new Matrix([[1,0,-2],[0,3,-1]]);
-			var m4 = new Matrix([[0,3],[-2,-1],[0,4]]);
-			
-			log(m3);
-			log(m4);
-			log(m3.mul(m4));
-			log(m3.mul(5));
-			log(m4.mul(5));
-			$("#overlay").mousemove(function(e){
-				var x = e.pageX - $("#whiteboard").offset().left;
-				var y = e.pageY - $("#whiteboard").offset().top;
-				var pt = new Point(x,y);
-				var ln = new Line(Point.ORIGIN,1,1);
-				var ln2 = new Line(new Point(450,450),1,-1);
-				draw(pt);
-				draw(ln.reflect(pt));
-				draw(ln2.reflect(pt));
-				draw(ln.reflect(ln2.reflect(pt)));
-				draw(ln);
-				draw(ln2);
-			});
-			
-			var mdown = false;
-			var lastpt;
-			var icount = 0;
-			var points = [];
-			var pt1 = new Point(2,0);
-			var pt2 = new Point(1,1);
-			//alert(v12 instanceof Point);
-			//alert(v12 instanceof Vector);
-			log(new Vector(pt1));
-			log(new Vector(pt1,pt2));
-			var v1 = new Vector(2,3);
-			log(v1);
-			log(v1.add(v1));
-			log(v1.sub(v1));
-			log(v1.dot(new Vector(-2,3)));
-			log(v1.mul(0.5));
-			log(v1.mag());
-			log(v1.magsq());
-			var ln = new Line(pt2,0,1);
-			log(ln);
-			log(pt1 + " r " + ln.reflect(pt1));
-			log(pt2 + " r " + ln.reflect(pt2));
-			$("#overlay").mousemove(function(e){
-				var x = e.pageX - $("#whiteboard").offset().left;
-				var y = e.pageY - $("#whiteboard").offset().top;
-				var pt = new Point(x,y);
-				var ln = new Line(Point.ORIGIN,1,1);
-				drawDot(pt);
-				drawDot(ln.reflect(pt));
 			});
 		});
 		

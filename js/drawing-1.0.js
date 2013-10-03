@@ -84,90 +84,45 @@ function draw(o, pt) {
 }
 
 function prettyLine(pts) {
-	var v1 = new Vector(pts[0],pts[1]);
-	var v2 = new Vector(pts[1],pts[2]);
-	var sgn = sign(v2.angleFrom(v1));
-	if(sgn === 0) {
-		ctx.beginPath();
-		ctx.moveTo(pts[0].x,pts[0].y);
-		ctx.lineTo(pts[1].x,pts[1].y);
-		ctx.strokeStyle = "#F0F";
-		ctx.stroke();
-	} else {
-		prettyEnd(pts[0],pts[1],pts[2]);
-	}
-	var lastsgn = sgn;
-	var lastv = v2;
-	var v;
+	prettyEnd(pts[0],pts[1],pts[2]);
 	for(var i=2;i<pts.length-1;i++) {
-		v = new Vector(pts[i],pts[i+1]);
-		sgn = sign(v.angleFrom(lastv));
-		if (sgn === lastsgn) {
-			if(sgn === 0) {
-				ctx.beginPath();
-				ctx.moveTo(pts[i-1].x,pts[i-1].y);
-				ctx.lineTo(pts[i].x,pts[i].y);
-				ctx.strokeStyle = "#0FF";
-				ctx.stroke();
-			} else {
-				prettyCurve(pts[i-2],pts[i-1],pts[i],pts[i+1]);
-			}
-		} else if (sgn === 0) {
-			prettyStraight(pts[i],pts[i-1],pts[i-2]);
-		} else if (lastsgn === 0) {
-			prettyStraight(pts[i-1],pts[i],pts[i+1]);
-		} else if (sgn === -lastsgn) {
-			prettyFlip(pts[i-2],pts[i-1],pts[i],pts[i+1]);
-		}
-		lastv = v;
-		lastsgn = sgn;
+		pretty4(pts[i-2],pts[i-1],pts[i],pts[i+1]);
 	}
+	prettyEnd(pts[pts.length-1],pts[pts.length-2],pts[pts.length-3]);
 }
 
 //Points 1 and 2 come from a straight line
-function prettyStraight(pt1,pt2,pt3) {
-	var midpt = pt1.midpoint(pt2);
-	var ln1 = new Line(pt2,pt1,pt3);
-	var ln2 = new Line(midpt.midpoint(pt2),pt1,pt2).rotate(Math.PI/2);
-	var qp = ln1.intersect(ln2);
-	ctx.beginPath();
-	ctx.moveTo(pt1.x,pt1.y);
-	ctx.bezierCurveTo(midpt.x,midpt.y,qp.x,qp.y,pt2.x,pt2.y);
-	ctx.strokeStyle = "#FF0";
-	ctx.stroke();
-}
-
-function prettyFlip(pt1,pt2,pt3,pt4) {
-	var midpt = pt2.midpoint(pt3);
-	var qp;
-	var ln1, ln2;
+function pretty4(pt1,pt2,pt3,pt4) {
+	var v13 = new Vector(pt1,pt3);
+	var v42 = new Vector(pt4,pt2);
+	var v23 = new Vector(pt2,pt3);
+	var magd3 = v23.mag()/3;
+	var bp1, bp2;
+	v13 = v13.mag(magd3);
+	v42 = v42.mag(magd3);
+	bp1 = pt2.add(v13);
+	bp2 = pt3.add(v42);
 	ctx.beginPath();
 	ctx.moveTo(pt2.x,pt2.y);
-	ln1 = new Line(pt2,pt1,pt3);
-	ln2 = new Line(midpt.midpoint(pt2),pt2,pt3).rotate(Math.PI/2);
-	qp = ln1.intersect(ln2);
-	ctx.quadraticCurveTo(qp.x,qp.y,midpt.x,midpt.y);
-	ln1 = new Line(pt3,pt2,pt4);
-	ln2 = new Line(midpt,midpt,qp);
-	qp = ln1.intersect(ln2);
-	ctx.quadraticCurveTo(qp.x,qp.y,pt3.x,pt3.y);
-	ctx.strokeStyle = "#00F";
-	ctx.stroke();
-	//prettyEnd(midpt,pt2,pt1);
-	//prettyEnd(midpt,pt3,pt4);
-}
-
-function prettyCurve(pt1,pt2,pt3,pt4) {
-	var qp;
-	ctx.beginPath();
-	ctx.moveTo(pt2.x,pt2.y);
-	qp = quadPoint([pt1,pt2,pt3,pt4],2);
-	ctx.quadraticCurveTo(qp.x,qp.y,pt3.x,pt3.y);
-	ctx.strokeStyle = "#0F0";
+	ctx.bezierCurveTo(bp1.x,bp1.y,bp2.x,bp2.y,pt3.x,pt3.y);
+	ctx.strokeStyle = "#F0F";
 	ctx.stroke();
 }
 
 function prettyEnd(pt1,pt2,pt3) {
+	var v31 = new Vector(pt3,pt1);
+	var v12 = new Vector(pt1,pt2);
+	var magd3 = v12.mag()/3;
+	var bp1, bp2;
+	v31 = v31.mag(magd3);
+	bp1 = pt2.add(v31);
+	bp2 = pt3.add(v31);
+	ctx.beginPath();
+	ctx.moveTo(pt2.x,pt2.y);
+	ctx.bezierCurveTo(bp1.x,bp1.y,bp2.x,bp2.y,pt3.x,pt3.y);
+	ctx.strokeStyle = "#F0F";
+	ctx.stroke();
+	
 	var qp;
 	ctx.beginPath();
 	ctx.moveTo(pt1.x,pt1.y);

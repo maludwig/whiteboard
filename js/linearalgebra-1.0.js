@@ -51,8 +51,15 @@ Vector.prototype.div = function(d) {
 Vector.prototype.dot = function(v) {
 	return (this.dx * v.dx) + (this.dy * v.dy);
 };
-Vector.prototype.mag = function() {
-	return Math.sqrt((this.dx * this.dx) + (this.dy * this.dy));
+Vector.prototype.mag = function(m) {
+	var curmag = Math.sqrt((this.dx * this.dx) + (this.dy * this.dy));
+	if(m) {
+		var newdx = this.dx * (m / curmag);
+		var newdy = this.dy * (m / curmag);
+		return new Vector(newdx,newdy);
+	} else {
+		return curmag;
+	}
 };
 Vector.prototype.magsq = function() {
 	return (this.dx * this.dx) + (this.dy * this.dy);
@@ -113,12 +120,18 @@ function Line(o,dx,dy) {
 	this.v = new Vector(this.o,this.t);	
 }
 Line.prototype.reflect = function(p) {
-	var vop = new Vector(this.o,p);
-	var v0p = new Vector(p);
-	var proj = this.v.mul(this.v.dot(vop)/this.v.magsq());
-	var vpd = proj.sub(vop).mul(2);
-	var v0d = v0p.add(vpd);
-	return v0d.terminus();
+	if(p instanceof Point) {
+		var vop = new Vector(this.o,p);
+		var v0p = new Vector(p);
+		var proj = this.v.mul(this.v.dot(vop)/this.v.magsq());
+		var vpd = proj.sub(vop).mul(2);
+		var v0d = v0p.add(vpd);
+		return v0d.terminus();
+	} else if(p instanceof Vector) {
+		var p1 = this.reflect(p.o);
+		var p2 = this.reflect(p.t);
+		return new Vector(p1,p2);
+	}
 };
 Line.prototype.rotate = function(rad) {
 	return new Line(new Point(this.o), this.v.rotate(rad));
