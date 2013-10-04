@@ -212,3 +212,7 @@ a img {
 #bgs > div.active {
 	color: inherit;
 }
+
+#log {
+	font-size: 8px;
+}

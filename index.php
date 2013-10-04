@@ -52,6 +52,7 @@
 			<div id="share"><i class="icon-share"></i></div>
 		</div>
 		<hr />
+		<div id="log"></div>
 	</div>
 	<div id="overlay"></div>
 	<canvas id="whiteboard"></canvas>

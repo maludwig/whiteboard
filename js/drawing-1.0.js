@@ -5,32 +5,96 @@ var ctx;
 var h;
 var w;
 var drawColor;
+var drawMode = "pen";
 
 function setColor(c) {
 	c = typeof c !== 'undefined' ? c : drawColor;
-	drawColor = c;
-	ctx.strokeStyle = c;
-	ctx.fillStyle = c;
-	$("#tools,#bgs,#functions").css({color:c});
-	$(".size").css({background:c});
+	drawColor = new Color(c);
+	if(drawMode == "pen" || drawMode == "eraser") {
+		drawColor.rgba.a = 1;
+	}
+	if(drawMode == "highlighter") {
+		drawColor.rgba.a = 0.3;
+	}
+	ctx.strokeStyle = drawColor.toString();
+	ctx.fillStyle = drawColor.toString();
+	$("#tools,#bgs,#functions").css({color:drawColor.hex});
+	$(".size").css({background:drawColor.hex});
 }
 
-function eraser() {
-	ctx.globalCompositeOperation = "destination-out";
-	drawColor = "rgba(0,0,0,1)";
-	ctx.strokeStyle = "rgba(0,0,0,1)";
-	ctx.fillStyle = "rgba(0,0,0,1)";
-}
-
-function highlighter() {
-	ctx.globalCompositeOperation = "darker";
+function drawWith(tool) {
+	if (tool == "eraser") {
+		drawMode = "eraser";
+		ctx.globalCompositeOperation = "destination-out";
+	} else if (tool == "pen") {
+		drawMode = "pen";
+		ctx.globalCompositeOperation = "source-over";
+	} else if (tool == "highlighter") {
+		drawMode = "highlighter";
+		ctx.globalCompositeOperation = "source-over";
+	}
 	setColor();
 }
 
-function pen() {
-	ctx.globalCompositeOperation = "source-over";
-	setColor();
+function Color(c) {
+	var result;
+	if(typeof c === "string") {
+		if(c.charAt(0)=="#"){
+			this.hex = this.fromShorthand(c);
+			this.rgba = this.hexToRGBA(this.hex);
+		} else if (c.substring(0,4) == "rgb(") {
+			result = /rgb\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/i.exec(c);
+			this.rgba = result ? {
+				r: parseFloat(result[1]),
+				g: parseFloat(result[2]),
+				b: parseFloat(result[3]),
+				a: 1
+			} : null;
+			this.hex = this.rgbaToHex(this.rgba);
+		} else if (c.substring(0,4) == "rgba") {
+			result = /rgba\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*.?\d*)\s*\)/i.exec(c);
+			this.rgba = result ? {
+				r: parseFloat(result[1]),
+				g: parseFloat(result[2]),
+				b: parseFloat(result[3]),
+				a: parseFloat(result[4])
+			} : null;
+			this.hex = this.rgbaToHex(this.rgba);
+		}
+	} else if (c.hex && c.rgba) {
+		this.hex = c.hex;
+		this.rgba = {
+			r: c.rgba.r,
+			g: c.rgba.g,
+			b: c.rgba.b,
+			a: c.rgba.a
+		};
+	}
 }
+Color.prototype.fromShorthand = function(hex) {
+    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+    var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    return hex.replace(shorthandRegex, function(m, r, g, b) {
+        return "#" + r + r + g + g + b + b;
+    });
+
+};
+Color.prototype.hexToRGBA = function(hex) {
+	hex = this.fromShorthand(hex);
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+		a: 1
+    } : null;
+};
+Color.prototype.rgbaToHex = function(rgba) {
+    return "#" + ((1 << 24) + (rgba.r << 16) + (rgba.g << 8) + rgba.b).toString(16).slice(1);
+};
+Color.prototype.toString = function() {
+	return "rgba(" + this.rgba.r + ", " + this.rgba.g + ", " + this.rgba.b + ", " + this.rgba.a + ")";
+};
 
 function initCtx(c) {
 	if(typeof c === "string") {
@@ -119,40 +183,53 @@ function draw(o, pt) {
 
 function Pretty(json) {
 	this.pts = [];
-	if(json && json.pts.length > 2) {
-		var lastgco = ctx.globalCompositeOperation;
+	if(json) {
 		var lastc = drawColor;
 		var lastw = ctx.lineWidth;
-		ctx.globalCompositeOperation = json.gco;
+		var lastt = drawMode;
 		setColor(json.color);
 		ctx.lineWidth = json.lineWidth;
+		drawWith(json.drawMode);
 		this.magsum = json.magsum;
 		this.pts.push(new Point(json.pts[0].x,json.pts[0].y));
-		for(var i=1;i<json.pts.length;i++) {
-			p = new Point(json.pts[i].x,json.pts[i].y);
-			this.pts.push(p);
-			var k = this.pts.length;
-			if(k === 3) {
-				prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
-			} else if (k > 3) {
-				pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
+		if(json.pts.length > 2) {
+			for(var i=1;i<json.pts.length;i++) {
+				p = new Point(json.pts[i].x,json.pts[i].y);
+				this.pts.push(p);
+				var k = this.pts.length;
+				if(k === 3) {
+					prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
+				} else if (k > 3) {
+					pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
+				}
 			}
+			this.endLine();
+		} else if (json.pts.length == 2) {
+			pt1 = new Point(json.pts[0].x,json.pts[0].y);
+			pt2 = new Point(json.pts[1].x,json.pts[1].y);
+			this.pts.push(pt1);
+			this.pts.push(pt2);
+			simpleLine(pt1,pt2);
+		} else if (json.pts.length == 1) {
+			p = new Point(json.pts[0].x,json.pts[0].y);
+			this.pts.push(p);
+			draw(p);
 		}
-		this.endLine();
-		ctx.globalCompositeOperation = lastgco;
 		setColor(lastc);
+		ctx.lineWidth = lastw;
+		drawWith(lastt);
 	} else {
 		this.magsum = 0;
 		this.color = drawColor;
+		this.drawMode = drawMode;
 		this.lineWidth = ctx.lineWidth;
-		this.gco = ctx.globalCompositeOperation;
 	}
 }
 Pretty.prototype.addPoint = function(p) {
 	if(this.pts.length > 0) {
 		var v = new Vector(this.pts[this.pts.length-1],p);
 		this.magsum += v.mag();
-		if(this.magsum > 30) {
+		if(this.magsum > 30 || this.pts.length < 30) {
 			this.pts.push(p);
 			this.magsum = 0;
 			var k = this.pts.length;
@@ -164,14 +241,29 @@ Pretty.prototype.addPoint = function(p) {
 		}
 	} else {
 		this.pts.push(p);
+		var v1 = new Vector(1,1);
+		var v2 = new Vector(-1,1);
+		//draw(new Line(p.add(v1),p));
+		//draw(new Line(p.add(v2),p));
 	}
 };
 Pretty.prototype.endLine = function() {
 	var k = this.pts.length;
 	if(k > 2) {
 		prettyEnd(this.pts[k-1],this.pts[k-2],this.pts[k-3]);
+	} else if (k == 2) {
+		simpleLine(this.pts[0],this.pts[1]);
+	} else if (k == 1) {
+		draw(this.pts[0]);
 	}
 };
+
+function simpleLine(pt1,pt2) {
+	ctx.beginPath();
+	ctx.moveTo(pt1.x,pt1.y);
+	ctx.lineTo(pt2.x,pt2.y);
+	ctx.stroke();
+}
 
 function pretty4(pt1,pt2,pt3,pt4) {
 	var v13 = new Vector(pt1,pt3);
@@ -187,7 +279,9 @@ function pretty4(pt1,pt2,pt3,pt4) {
 	ctx.moveTo(pt2.x,pt2.y);
 	ctx.bezierCurveTo(bp1.x,bp1.y,bp2.x,bp2.y,pt3.x,pt3.y);
 	ctx.stroke();
-	draw(pt3);
+	if(drawMode != "highlighter") {
+		draw(pt3);
+	}
 }
 
 function prettyEnd(pt1,pt2,pt3) {
@@ -203,8 +297,10 @@ function prettyEnd(pt1,pt2,pt3) {
 	ctx.moveTo(pt2.x,pt2.y);
 	ctx.bezierCurveTo(bp1.x,bp1.y,bp2.x,bp2.y,pt1.x,pt1.y);
 	ctx.stroke();
-	draw(pt1);
-	draw(pt2);
+	if(drawMode != "highlighter") {
+		draw(pt1);
+		draw(pt2);
+	}
 }
 
 function drawGrid(sz,strokeStyle,lineWidth) {

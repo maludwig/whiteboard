@@ -7,8 +7,10 @@ var lastLineID = 0;
 var pretties = [];
 $(window).load(function(){
 	initCtx('#whiteboard');
-	$("#overlay").hammer().on("dragstart", function() {
-		start();
+	$("#overlay").hammer().on("dragstart", function(e) {
+		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
+		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
+		start(x,y);
 	});
 	$("#overlay").hammer().on("drag", function(e) {
 		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
@@ -105,17 +107,17 @@ $(function() {
 		$("#sizes").toggleClass("open");
 	});
 	$("#pen").click(function(){
-		pen();
+		drawWith("pen");
 		$("#tools>div").removeClass("active");
 		$(this).addClass("active");
 	});
 	$("#eraser").click(function(){
-		eraser();
+		drawWith("eraser");
 		$("#tools>div").removeClass("active");
 		$(this).addClass("active");
 	});
 	$("#highlighter").click(function(){
-		highlighter();
+		drawWith("highlighter");
 		$("#tools>div").removeClass("active");
 		$(this).addClass("active");
 	});
@@ -131,6 +133,13 @@ $(function() {
 	});
 	$("#clear").click(function(){
 		clearDrawing(false);
+		pretties = [];
+		if(shorthash) {
+			var o = {action:"clear",hash:shorthash};
+			$.get("upload",o,function(data) {
+				lastLineID = data.id;
+			},"json");
+		}
 	});
 	$("#share").click(function(){
 		var o = {action:"board"};
@@ -147,16 +156,18 @@ $(function() {
 				lastLineID = data.id;
 				listen();
 			},"json");
-			
 		});
 	});
 });
 function log(msg) {
 	msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
-	//$("#footer").append(msg);
+	//$("#log").prepend(msg);
 }
-function start() {
+function start(x,y) {
+	log("dragstart");
+	draw(new Vector(x,y));
 	pretty = new Pretty();
+	pretty.addPoint(new Point(x,y));
 }
 function move(x,y) {
 	pretty.addPoint(new Point(x,y));
@@ -175,13 +186,26 @@ function tap(e) {
 	var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
 	var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
 	var p = new Point(x,y);
-	draw(p);
+	pretty = new Pretty();
+	pretty.addPoint(p);
+	pretty.endLine();
+	pretties.push(pretty);
+	if(shorthash) {
+		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty)};
+		$.get("upload",o,function(data) {
+			lastLineID = data.id;
+		},"json");
+	}
 }
 function listen() {
 	var o = {action:"getlines",hash:shorthash,since:lastLineID};
 	$.get("upload",o,function(data) {
 		for(var i=0;i<data.jsons.length;i++) {
-			new Pretty(JSON.parse(data.jsons[i]));
+			if (data.jsons[i] == "clear") {
+				clearDrawing(false);
+			} else {
+				pretties.push(new Pretty(JSON.parse(data.jsons[i])));
+			}
 			lastLineID = data.id;
 		}
 		setTimeout(listen,1000);

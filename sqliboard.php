@@ -9,6 +9,17 @@ class Board {
 	public $line;
 	public $pointCount;
 	
+	public function clear() {
+		//Using the global $mysqli connection
+		$mysqli = $GLOBALS['mysqli'];
+		$query = "DELETE FROM `lines` WHERE board=" . $mysqli->real_escape_string($this->id);
+		$result = $mysqli->query($query);
+		if (!$result) {
+			throw new Exception($mysqli->error);
+		}
+		return $this->addLine("clear");
+	}
+	
 	public function getLines($since = "") {
 		//Using the global $mysqli connection
 		$mysqli = $GLOBALS['mysqli'];

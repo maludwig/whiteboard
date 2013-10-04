@@ -21,6 +21,12 @@ if(noneEmpty('action')) {
 			}
 			echo json_encode(['id' => $lastid]);
 		}
+	} else if($_REQUEST['action'] == "clear") {
+		$lastid = 0;
+		if(noneEmpty("hash")) {
+			$brd = new Board($_REQUEST['hash']);
+			echo json_encode(['id' => $brd->clear()]);
+		}
 	} else if($_REQUEST['action'] == "getlines") {
 		if(allSet("hash","since")) {
 			$brd = new Board($_REQUEST['hash']);

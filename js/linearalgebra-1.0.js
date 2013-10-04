@@ -12,6 +12,7 @@ function Point(x,y) {
 		this.y = y;		
 	}
 	if(verbose) {if(typeof draw !== 'undefined'){draw(this);}}
+	//if(typeof draw !== 'undefined'){draw(this);}
 }
 Point.ORIGIN = new Point(0,0);
 Point.prototype.midpoint = function(p) {
@@ -144,7 +145,7 @@ Line.prototype.reflect = function(p) {
 Line.prototype.rotate = function(rad) {
 	return new Line(new Point(this.o), this.v.rotate(rad));
 };
-Vector.prototype.angle = function() {
+Line.prototype.angle = function() {
 	return Math.atan2(this.dy,this.dx);
 };
 Line.prototype.intersect = function(ln) {
