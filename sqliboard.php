@@ -107,7 +107,7 @@ class Board {
 			}
 			if($checkExistence) {
 				if(!$this->exists($shorthash)) {
-					throw new ExistenceException('Board does not exist');
+					throw new Exception('Board does not exist');
 				}
 			}
 			$this->populate($shorthash);
