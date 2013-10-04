@@ -1,32 +1,36 @@
 <?php
 require_once "sqliboard.php";
-Board::insert();
-exit();
-if(noneEmpty('action','hash')) {
-	echo $_REQUEST['action'];
+if(noneEmpty('action')) {
+	if($_REQUEST['action'] == "board") {
+		$brd = new Board();
+		echo $brd->shorthash;
+	} else if($_REQUEST['action'] == "line") {
+		$lastid = 0;
+		if(noneEmpty("linedata","hash")) {
+			$brd = new Board($_REQUEST['hash']);
+			$lastid = $brd->addLine($_REQUEST['linedata']);
+			echo json_encode(['id' => $lastid]);
+		}
+	} else if($_REQUEST['action'] == "lines") {
+		$lastid = 0;
+		if(noneEmpty("linedata","hash")) {
+			$brd = new Board($_REQUEST['hash']);
+			$lines = json_decode($_REQUEST['linedata']);
+			foreach($lines as $key => $val) {
+				$lastid = $brd->addLine($val);
+			}
+			echo json_encode(['id' => $lastid]);
+		}
+	} else if($_REQUEST['action'] == "getlines") {
+		if(allSet("hash","since")) {
+			$brd = new Board($_REQUEST['hash']);
+			echo json_encode($brd->getLines($_REQUEST['since']));
+		}
+	}
 } else {
 	echo "Malformed request";
 }
 
-
-
-		
-function getBoardID($shorthash) {
-	$shorthash = str_pad($shorthash,8,"0");
-	//Using the global $mysqli connection
-	$mysqli = $GLOBALS['mysqli'];
-	$query = "SELECT id FROM boards WHERE shorthash=0x" . $mysqli->real_escape_string(shorthash);
-	$result = $mysqli->query($query);
-	if (!$result) {
-		throw new Exception($mysqli->error);
-	}
-	if ($result->num_rows > 0) {
-		$row = $result->fetch_assoc();
-		return $row['id'];
-	} else {
-		throw new Exception('User not found');
-	}
-}
 
 function allSet() {
 	$args = func_get_args();

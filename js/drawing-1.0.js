@@ -8,16 +8,18 @@ var drawColor;
 
 function setColor(c) {
 	c = typeof c !== 'undefined' ? c : drawColor;
-	drawColor = c
+	drawColor = c;
 	ctx.strokeStyle = c;
 	ctx.fillStyle = c;
-	$("#tools,#bgs").css({color:c});
+	$("#tools,#bgs,#functions").css({color:c});
 	$(".size").css({background:c});
 }
 
 function eraser() {
 	ctx.globalCompositeOperation = "destination-out";
+	drawColor = "rgba(0,0,0,1)";
 	ctx.strokeStyle = "rgba(0,0,0,1)";
+	ctx.fillStyle = "rgba(0,0,0,1)";
 }
 
 function highlighter() {
@@ -115,9 +117,36 @@ function draw(o, pt) {
 	}
 }
 
-function Pretty() {
+function Pretty(json) {
 	this.pts = [];
-	this.magsum = 0;
+	if(json && json.pts.length > 2) {
+		var lastgco = ctx.globalCompositeOperation;
+		var lastc = drawColor;
+		var lastw = ctx.lineWidth;
+		ctx.globalCompositeOperation = json.gco;
+		setColor(json.color);
+		ctx.lineWidth = json.lineWidth;
+		this.magsum = json.magsum;
+		this.pts.push(new Point(json.pts[0].x,json.pts[0].y));
+		for(var i=1;i<json.pts.length;i++) {
+			p = new Point(json.pts[i].x,json.pts[i].y);
+			this.pts.push(p);
+			var k = this.pts.length;
+			if(k === 3) {
+				prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
+			} else if (k > 3) {
+				pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
+			}
+		}
+		this.endLine();
+		ctx.globalCompositeOperation = lastgco;
+		setColor(lastc);
+	} else {
+		this.magsum = 0;
+		this.color = drawColor;
+		this.lineWidth = ctx.lineWidth;
+		this.gco = ctx.globalCompositeOperation;
+	}
 }
 Pretty.prototype.addPoint = function(p) {
 	if(this.pts.length > 0) {

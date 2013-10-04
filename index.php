@@ -13,24 +13,11 @@
 	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
 	<script type="text/javascript" src="js/drawing-1.0.js"></script>
 	<script type="text/javascript" src="js/jquery.hammer.min.js"></script>
-	<script type="text/javascript" src="code.js"></script>
 	<script>
-		$(function() {
-			$("#clear").click(function(){
-				clearDrawing(false);
-			});
-			$("#bgs>div").click(function(){
-				var n = $(this).html();
-				$("#bgs>div").removeClass("active");
-				$(this).addClass("active");
-				if(n===0) {
-					$("html,body").css({background:"none"});
-				} else {
-					$("html,body").css({background:"url(img/bg" + $(this).html() + ".png)"});
-				}
-			});
+		$(window).load(function() {
 		});
 	</script>
+	<script type="text/javascript" src="code.js"></script>
 </head>
 
 <body>
@@ -43,6 +30,7 @@
 		</div>
 		<hr />
 		<div id="sizes">
+			<div id="sizeexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
 		</div>
 		<hr />
 		<div id="tools">
@@ -61,6 +49,7 @@
 		<hr />
 		<div id="functions">
 			<div id="clear"><i class="icon-remove"></i></div>
+			<div id="share"><i class="icon-share"></i></div>
 		</div>
 		<hr />
 	</div>
