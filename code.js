@@ -7,7 +7,7 @@ var lastLineID = 0;
 var pretties = [];
 $(window).load(function(){
 	initCtx('#whiteboard');
-	$("#overlay").hammer().on("dragstart", function(e) {
+	$("#overlay").hammer().on("touch", function(e) {
 		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
 		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
 		start(x,y);
@@ -17,16 +17,29 @@ $(window).load(function(){
 		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
 		move(x,y);
 	});
-	$("#overlay").hammer().on("dragend", function() {
-		end();
+	$("#overlay").hammer().on("release", function(e) {
+		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
+		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
+		end(x,y);
 	});
 	$("#overlay").hammer().on("tap",tap);
 	$(document).bind('touchmove', false);
 	
 	if(window.location.hash){
 		shorthash = window.location.hash.slice(1);
+		$("#share").addClass("active");
 		listen();
 	}
+	$("*").attr("unselectable","on");
+	
+	$("#save").click(function() {
+		var $img = $('<img />').attr("src",cv.toDataURL("image/png")).addClass("mini");
+		var $a = $("<a />").attr("href",cv.toDataURL("image/png")).attr("target","_blank");
+		$a.append($img);
+		$("#minis").prepend($a.clone());
+		var $msg = $("<div><p>Click the image below to open it in a new window. Right-click the image to save.</p><div/>").append($a);
+		popup("Save Image",$msg);
+	});
 });
 $(function() {
 	$.get("palettes.json",function(pals) {
@@ -84,7 +97,7 @@ $(function() {
 	for(key in sizes) {
 		i = sizes[key];
 		$sz = $('<div class="size extra"></div>');
-		$sz.css({width:i+"px",height:i+"px",margin:(20-(i/2))+"px"});
+		$sz.css({width:i+"px",height:i+"px",margin:(20-(i/2))+"px "+(21-(i/2))+"px"});
 		$sz.hide();
 		$("#sizes").append($sz);
 	}
@@ -92,7 +105,7 @@ $(function() {
 	for(key in sizes) {
 		i = sizes[key];
 		$sz = $('<div class="size extra"></div>');
-		$sz.css({width:i+"px",height:i+"px",margin:(80-(i/2))+"px"});
+		$sz.css({width:i+"px",height:i+"px",margin:(60-(i/2))+"px "+(80-(i/2))+"px"});
 		$sz.hide();
 		$("#sizes").append($sz);
 	}
@@ -136,14 +149,14 @@ $(function() {
 		pretties = [];
 		if(shorthash) {
 			var o = {action:"clear",hash:shorthash};
-			$.get("upload",o,function(data) {
+			$.post("upload",o,function(data) {
 				lastLineID = data.id;
 			},"json");
 		}
 	});
 	$("#share").click(function(){
 		var o = {action:"board"};
-		$.get("upload",o,function(data) {
+		$.post("upload",o,function(data) {
 			shorthash = data;
 			window.location.hash = "#" + shorthash;
 			$("#share").addClass("active");
@@ -152,32 +165,40 @@ $(function() {
 				ld.push(JSON.stringify(pretties[i]));
 			}
 			var ls = {action:"lines",hash:shorthash,linedata:JSON.stringify(ld)};
-			$.get("upload",ls,function(data){
+			$.post("upload",ls,function(data){
 				lastLineID = data.id;
 				listen();
 			},"json");
 		});
 	});
+	$("#ok").click(function() {
+		$("#popup").hide(200);
+	});
+	$("#popup").center();
+	$("#popup").hide();
 });
 function log(msg) {
 	msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
 	//$("#log").prepend(msg);
 }
+function minilog(msg) {
+	msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
+	//$("#log").prepend(msg);
+}
 function start(x,y) {
-	log("dragstart");
-	draw(new Vector(x,y));
 	pretty = new Pretty();
 	pretty.addPoint(new Point(x,y));
 }
 function move(x,y) {
 	pretty.addPoint(new Point(x,y));
 }
-function end() {
+function end(x,y) {
+	pretty.addPoint(new Point(x,y));
 	pretty.endLine();
 	pretties.push(pretty);
 	if(shorthash) {
 		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty)};
-		$.get("upload",o,function(data) {
+		$.post("upload",o,function(data) {
 			lastLineID = data.id;
 		},"json");
 	}
@@ -192,7 +213,7 @@ function tap(e) {
 	pretties.push(pretty);
 	if(shorthash) {
 		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty)};
-		$.get("upload",o,function(data) {
+		$.post("upload",o,function(data) {
 			lastLineID = data.id;
 		},"json");
 	}
@@ -210,4 +231,10 @@ function listen() {
 		}
 		setTimeout(listen,1000);
 	},"json");
+}
+function popup(title,msg) {
+	$("#title").html(title);
+	$("#message").html(msg);
+	$("#popup").center();
+	$("#popup").show(400);
 }

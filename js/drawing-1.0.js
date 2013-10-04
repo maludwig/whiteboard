@@ -227,6 +227,9 @@ function Pretty(json) {
 }
 Pretty.prototype.addPoint = function(p) {
 	if(this.pts.length > 0) {
+		if(p.x == this.pts[this.pts.length-1].x && p.y == this.pts[this.pts.length-1].y) {
+			return;
+		}
 		var v = new Vector(this.pts[this.pts.length-1],p);
 		this.magsum += v.mag();
 		if(this.magsum > 30 || this.pts.length < 30) {
@@ -241,10 +244,6 @@ Pretty.prototype.addPoint = function(p) {
 		}
 	} else {
 		this.pts.push(p);
-		var v1 = new Vector(1,1);
-		var v2 = new Vector(-1,1);
-		//draw(new Line(p.add(v1),p));
-		//draw(new Line(p.add(v2),p));
 	}
 };
 Pretty.prototype.endLine = function() {

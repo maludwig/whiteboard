@@ -9,6 +9,14 @@
     font-style: normal;
 }
 
+* {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+   -ms-user-select: none;
+   user-select: none;
+}
+
 html, body {
     margin: 0px;
     padding: 0px;
@@ -25,6 +33,32 @@ div {
 
 a img {
 	border: none;
+}
+
+h1,h2,h3,h4,h5 {
+	text-align: center;
+	font-family: 'Julius Sans One', sans-serif;
+	font-size: 24px;
+}
+
+#popup {
+	width:25%;
+	background: white;
+	z-index: 500;
+	padding: 1em;
+}
+
+#message {
+	text-align:center;
+}
+
+#ok {
+	display: block;
+	width: 30%;
+	padding: 6px;
+	margin: 1em auto;
+	background: white;
+	border: 1px solid #CCF;
 }
 
 #whiteboard {
@@ -49,7 +83,7 @@ a img {
 #sidebar {
 	position:absolute;
 	left: -220px;
-	width: 180px;
+	width: 190px;
 	height: 100%;
 	z-index: 200;
 	background: white;
@@ -63,12 +97,6 @@ a img {
 
 #sidebar p {
 	text-align: center;
-}
-
-#sidebar h3 {
-	text-align: center;
-	font-family: 'Julius Sans One', sans-serif;
-	font-size: 24px;
 }
 
 #sidebar hr {
@@ -104,7 +132,7 @@ a img {
 #palettes {
 	position:relative;
 	height: 192px;
-	width: 210px;
+	width: 200px;
 	overflow: hidden;
 	background: white;
 }
@@ -211,6 +239,14 @@ a img {
 
 #bgs > div.active {
 	color: inherit;
+}
+
+.mini {
+	width: 180px;
+}
+
+#popup .mini {
+	width: 70%;
 }
 
 #log {

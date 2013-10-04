@@ -61,7 +61,7 @@ Vector.prototype.dot = function(v) {
 };
 Vector.prototype.mag = function(m) {
 	var curmag = Math.sqrt((this.dx * this.dx) + (this.dy * this.dy));
-	if(m) {
+	if(typeof m !== 'undefined') {
 		var newdx = this.dx * (m / curmag);
 		var newdy = this.dy * (m / curmag);
 		return new Vector(newdx,newdy);

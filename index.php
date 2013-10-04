@@ -13,6 +13,7 @@
 	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
 	<script type="text/javascript" src="js/drawing-1.0.js"></script>
 	<script type="text/javascript" src="js/jquery.hammer.min.js"></script>
+	<script type="text/javascript" src="js/jquery-center.1.2.js"></script>
 	<script>
 		$(window).load(function() {
 		});
@@ -50,12 +51,19 @@
 		<div id="functions">
 			<div id="clear"><i class="icon-remove"></i></div>
 			<div id="share"><i class="icon-share"></i></div>
+			<div id="save"><i class="icon-save"></i></div>
+			
 		</div>
 		<hr />
-		<div id="log"></div>
+		<div id="minis"></div>
 	</div>
 	<div id="overlay"></div>
 	<canvas id="whiteboard"></canvas>
+	<div id="popup">
+		<h3 id="title"></h3>
+		<div id="message"></div>
+		<button id="ok">OK</button>
+	</div>
 </body>
 </html>
 
