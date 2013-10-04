@@ -1,3 +1,0 @@
-# Rewrite URLs to have .html extensions
-RewriteEngine on
-rewriterule ^([^.]+[^/])$ $1.php
