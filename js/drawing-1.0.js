@@ -232,7 +232,7 @@ Pretty.prototype.addPoint = function(p) {
 		}
 		var v = new Vector(this.pts[this.pts.length-1],p);
 		this.magsum += v.mag();
-		if(this.magsum > 30 || this.pts.length < 30) {
+		if(this.magsum > 20 || this.pts.length < 20) {
 			this.pts.push(p);
 			this.magsum = 0;
 			var k = this.pts.length;
