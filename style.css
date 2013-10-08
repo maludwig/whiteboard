@@ -1,10 +1,54 @@
 @font-face {
+    font-family: 'cabin';
+    src: url('fonts/cabin-regular-webfont.eot');
+    src: url('fonts/cabin-regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/cabin-regular-webfont.woff') format('woff'),
+         url('fonts/cabin-regular-webfont.ttf') format('truetype'),
+         url('fonts/cabin-regular-webfont.svg#cabinregular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'cabinmedium';
+    src: url('fonts/cabin-medium-webfont.eot');
+    src: url('fonts/cabin-medium-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/cabin-medium-webfont.woff') format('woff'),
+         url('fonts/cabin-medium-webfont.ttf') format('truetype'),
+         url('fonts/cabin-medium-webfont.svg#cabinmedium') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'cabinbold';
+    src: url('fonts/cabin-bold-webfont.eot');
+    src: url('fonts/cabin-bold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('fonts/cabin-bold-webfont.woff') format('woff'),
+         url('fonts/cabin-bold-webfont.ttf') format('truetype'),
+         url('fonts/cabin-bold-webfont.svg#cabinbold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
     font-family: 'familiar_probold';
     src: url('fonts/Familiar_Pro-Bold-webfont.eot');
     src: url('fonts/Familiar_Pro-Bold-webfont.eot?#iefix') format('embedded-opentype'),
          url('fonts/Familiar_Pro-Bold-webfont.woff') format('woff'),
          url('fonts/Familiar_Pro-Bold-webfont.ttf') format('truetype'),
          url('fonts/Familiar_Pro-Bold-webfont.svg#familiar_probold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'entypo';
+    src: url('fonts/entypo.eot');
+    src: url('fonts/entypo.eot?#iefix') format('embedded-opentype'),
+         url('fonts/entypo.woff') format('woff'),
+         url('fonts/entypo.ttf') format('truetype'),
+         url('fonts/entypo.svg#entypo') format('svg');
     font-weight: normal;
     font-style: normal;
 }
@@ -23,7 +67,8 @@ html, body {
     width: 100%;
     height: 100%;
 	background: url(img/bg3.png);
-	font-family: 'familiar_probold';
+	font-family: 'cabin';
+	overflow:hidden;
 }
 
 div {
@@ -37,12 +82,12 @@ a img {
 
 h1,h2,h3,h4,h5 {
 	text-align: center;
-	font-family: 'Julius Sans One', sans-serif;
+	font-family: 'cabinbold', sans-serif;
 	font-size: 24px;
 }
 
 #popup {
-	width:25%;
+	width:70%;
 	background: white;
 	z-index: 500;
 	padding: 1em;
@@ -61,13 +106,17 @@ h1,h2,h3,h4,h5 {
 	border: 1px solid #CCF;
 }
 
-#whiteboard {
+#hwb, #pwb {
 	position: absolute;
 	left: 0;
 	top: 0;
 	width: 100%;
 	height: 100%;
 	z-index: 50;
+}
+
+#pwb {
+	z-index: 75;
 }
 
 #overlay {
@@ -142,9 +191,9 @@ h1,h2,h3,h4,h5 {
 
 #palexpand {
 	position: absolute;
-	left: 185px;
-	top: 74px;
-	padding: 3px;
+	left: 180px;
+	top: 40px;
+	padding: 37px 7px;
 	margin: 3px;
 }
 
@@ -219,25 +268,75 @@ h1,h2,h3,h4,h5 {
 	color: inherit;
 }
 
-#functions > div {
-	float: left;
-	padding: 10px;
+#functions {
+	position:relative;
+	height: 140px;
+}
+
+.funcline {
+	position:relative;
+	overflow: hidden;
+	height: 80px;
+}
+
+.funcline > div {
+	position: absolute;
+	padding: 0;
+	margin: 0;
+	top: -40px;
 	font-size: 40px;
+	font-family: 'entypo';
+	font-size: 76px;
 	color: #000000;
 }
 
-#functions > div.active {
+.funcline > div > p {
+	position: absolute;
+	top:80px;
+	width: 100%;
+	font-size: 14px;
+	font-family: 'cabin';
+	padding: 0;
+	margin: 0;
+}
+
+.funcline > div.active {
 	color: inherit;
 }
 
-#bgs > div {
+.funcline > #clear {
+	left: 5px;
+}
+
+.funcline > #share {
+	left: 70px;
+}
+
+.funcline > #save {
+	left: 130px;
+}
+
+.funcline > #undo {
+	left: 5px;
+}
+
+.funcline > #redo {
+	left: 70px;
+}
+
+.funcline > #redo.inactive, .funcline > #undo.inactive {
+	color: #8b8b8b;
+}
+
+#bgs > h3 {
 	float: left;
+	margin:0;
 	padding: 10px;
 	font-size: 25px;
 	color: #000000;
 }
 
-#bgs > div.active {
+#bgs > h3.active {
 	color: inherit;
 }
 
@@ -251,5 +350,11 @@ h1,h2,h3,h4,h5 {
 }
 
 #log {
+	position: absolute;
+	top: 0;
+	right: 0;
+	padding: 1em;
+	text-align:right;
+	width: 200px;
 	font-size: 8px;
 }

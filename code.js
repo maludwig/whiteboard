@@ -5,25 +5,90 @@ var pretty;
 var shorthash;
 var lastLineID = 0;
 var pretties = [];
+var listenTimeout; 
+var mDown = false;
+
+var basics=function(o){
+	var sRet = "";
+	for (var key in o) {
+		if(!isFunction(o[key])) {
+			sRet += "{" + key + ": " + o[key] + "}";
+		}
+	}
+	return sRet;
+};
+
+var isFunction = function(obj) {
+	return !!(obj && obj.constructor && obj.call && obj.apply);
+};
+
+function start(x,y) {
+	pretty = new Pretty();
+	pretty.addPoint(new Point(x,y));
+}
+function move(x,y) {
+	pretty.addPoint(new Point(x,y));
+}
+function end(x,y) {
+	pretty.addPoint(new Point(x,y));
+	pretty.endLine();
+	pretties.push(pretty);
+	clearTimeout(listenTimeout);
+	if(shorthash) {
+		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty),since:lastLineID};
+		$.post("upload",o,function(data) {
+			drawLines(data);
+			listenTimeout = setTimeout(listen,300);
+		},"json");
+	}
+	undoMark = -1;
+	$("#undo").removeClass("inactive");
+	$("#redo").addClass("inactive");
+}
+
 $(window).load(function(){
-	initCtx('#whiteboard');
-	$("#overlay").hammer().on("touch", function(e) {
-		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
-		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
+	initCtx('#hwb','#pwb');
+	$("#overlay").on("touchstart", function(e) {
+		var x = e.originalEvent.changedTouches[0].pageX;
+		var y = e.originalEvent.changedTouches[0].pageY;
 		start(x,y);
+		e.preventDefault();
 	});
-	$("#overlay").hammer().on("drag", function(e) {
-		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
-		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
+	$("#overlay").on("touchmove", function(e) {
+		var x = e.originalEvent.changedTouches[0].pageX;
+		var y = e.originalEvent.changedTouches[0].pageY;
 		move(x,y);
+		e.preventDefault();
 	});
-	$("#overlay").hammer().on("release", function(e) {
-		var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
-		var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
+	$("#overlay").on("touchend", function(e) {
+		var x = e.originalEvent.changedTouches[0].pageX;
+		var y = e.originalEvent.changedTouches[0].pageY;
 		end(x,y);
+		e.preventDefault();
 	});
-	$("#overlay").hammer().on("tap",tap);
 	$(document).bind('touchmove', false);
+	$("#overlay").mousedown(function(e) {
+		var x = e.pageX;
+		var y = e.pageY;
+		mDown = true;
+		start(x,y);
+		e.preventDefault();
+	});
+	$("#overlay").mousemove(function(e) {
+		if (mDown) {
+			var x = e.pageX;
+			var y = e.pageY;
+			move(x,y);
+		}
+		e.preventDefault();
+	});
+	$("#overlay").mouseup(function(e) {
+		var x = e.pageX;
+		var y = e.pageY;
+		mDown = false;
+		end(x,y);
+		e.preventDefault();
+	});
 	
 	if(window.location.hash){
 		shorthash = window.location.hash.slice(1);
@@ -113,30 +178,18 @@ $(function() {
 	$(".size").click(function() {
 		$(".size").removeClass("active");
 		$(this).addClass("active");
-		ctx.lineWidth = $(this).width();
+		lineWidth($(this).width());
 	});
 	$("#sizeexpand").click(function(){
 		$("#sizes .extra").toggle(200);
 		$("#sizes").toggleClass("open");
 	});
-	$("#pen").click(function(){
-		drawWith("pen");
-		$("#tools>div").removeClass("active");
-		$(this).addClass("active");
+	$("#tools>div").click(function(){
+		drawWith($(this).attr("id"));
 	});
-	$("#eraser").click(function(){
-		drawWith("eraser");
-		$("#tools>div").removeClass("active");
-		$(this).addClass("active");
-	});
-	$("#highlighter").click(function(){
-		drawWith("highlighter");
-		$("#tools>div").removeClass("active");
-		$(this).addClass("active");
-	});
-	$("#bgs>div").click(function(){
+	$("#bgs>h3").click(function(){
 		var n = $(this).html();
-		$("#bgs>div").removeClass("active");
+		$("#bgs>h3").removeClass("active");
 		$(this).addClass("active");
 		if(n===0) {
 			$("html,body").css({background:"none"});
@@ -145,14 +198,16 @@ $(function() {
 		}
 	});
 	$("#clear").click(function(){
-		clearDrawing(false);
-		pretties = [];
+		clearDrawing();
 		if(shorthash) {
 			var o = {action:"clear",hash:shorthash};
 			$.post("upload",o,function(data) {
 				lastLineID = data.id;
 			},"json");
 		}
+		undoMark = -1;
+		undoPretties = undefined;
+		$("#undo, #redo").addClass("inactive");
 	});
 	$("#share").click(function(){
 		var o = {action:"board"};
@@ -169,6 +224,7 @@ $(function() {
 				lastLineID = data.id;
 				listen();
 			},"json");
+			popup("Sharing",'Your whiteboard is now shared at <a href="' + window.location + '">' + window.location + '</a>');
 		});
 	});
 	$("#ok").click(function() {
@@ -183,55 +239,27 @@ function log(msg) {
 }
 function minilog(msg) {
 	msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
-	//$("#log").prepend(msg);
-}
-function start(x,y) {
-	pretty = new Pretty();
-	pretty.addPoint(new Point(x,y));
-}
-function move(x,y) {
-	pretty.addPoint(new Point(x,y));
-}
-function end(x,y) {
-	pretty.addPoint(new Point(x,y));
-	pretty.endLine();
-	pretties.push(pretty);
-	if(shorthash) {
-		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty)};
-		$.post("upload",o,function(data) {
-			lastLineID = data.id;
-		},"json");
-	}
-}
-function tap(e) {
-	var x = e.gesture.center.pageX - $("#whiteboard").offset().left;
-	var y = e.gesture.center.pageY - $("#whiteboard").offset().top;
-	var p = new Point(x,y);
-	pretty = new Pretty();
-	pretty.addPoint(p);
-	pretty.endLine();
-	pretties.push(pretty);
-	if(shorthash) {
-		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty)};
-		$.post("upload",o,function(data) {
-			lastLineID = data.id;
-		},"json");
-	}
+	$("#log").prepend(msg);
 }
 function listen() {
 	var o = {action:"getlines",hash:shorthash,since:lastLineID};
 	$.get("upload",o,function(data) {
-		for(var i=0;i<data.jsons.length;i++) {
-			if (data.jsons[i] == "clear") {
-				clearDrawing(false);
-			} else {
-				pretties.push(new Pretty(JSON.parse(data.jsons[i])));
-			}
-			lastLineID = data.id;
-		}
-		setTimeout(listen,1000);
+		drawLines(data);
+		listenTimeout = setTimeout(listen,300);
 	},"json");
 }
+
+function drawLines(data) {
+	for(var i=0;i<data.jsons.length;i++) {
+		if (data.jsons[i] == "clear") {
+			clearDrawing();
+		} else {
+			pretties.push(new Pretty(JSON.parse(data.jsons[i])));
+		}
+		lastLineID = data.id;
+	}
+}
+
 function popup(title,msg) {
 	$("#title").html(title);
 	$("#message").html(msg);

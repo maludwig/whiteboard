@@ -12,10 +12,77 @@
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
 	<script type="text/javascript" src="js/drawing-1.0.js"></script>
+	<script type="text/javascript" src="js/pretty-1.0.js"></script>
 	<script type="text/javascript" src="js/jquery.hammer.min.js"></script>
 	<script type="text/javascript" src="js/jquery-center.1.2.js"></script>
+	<script type="text/javascript" src="js/modernizr.custom.74125.js"></script>
 	<script>
-		$(window).load(function() {
+		var undoPretties;
+		var undoMark = -1;
+		$(function() {
+			$("#undo").click(function() {
+				var tempDrawColor = drawColor;
+				var tempWidth = lineWidth();
+				var tempDrawMode = drawMode;
+				if(undoMark == -1) {
+					undoPretties = pretties;
+					undoMark = undoPretties.length;
+				}
+				if(undoMark == 0) {
+					return;
+				}
+				clearDrawing();
+				undoMark--;
+				for(var i=0;i<undoMark;i++) {
+					pretties.push(new Pretty(undoPretties[i]));
+				}
+				if(undoMark == 0) {
+					$(this).addClass("inactive");
+				}
+				setColor(tempDrawColor);
+				lineWidth(tempWidth);
+				drawWith(tempDrawMode);
+				$("#redo").removeClass("inactive");
+				
+				if(shorthash) {
+					clearTimeout(listenTimeout);
+					var o = {action:"clear",hash:shorthash};
+					$.post("upload",o,function(data) {
+						lastLineID = data.id;
+						var ld = [];
+						for(var i=0;i<pretties.length;i++) {
+							ld.push(JSON.stringify(pretties[i]));
+						}
+						var ls = {action:"lines",hash:shorthash,linedata:JSON.stringify(ld)};
+						$.post("upload",ls,function(data){
+							lastLineID = data.id;
+							listenTimeout = setTimeout(listen,300);
+						},"json");
+					},"json");
+				}
+			});
+			$("#redo").click(function() {
+				if(undoMark == undoPretties.length) {
+					return;
+				}
+				if(undoMark != -1) {
+					pretty = new Pretty(undoPretties[undoMark]);
+					pretties.push(pretty);
+					undoMark++;
+					clearTimeout(listenTimeout);
+					if(shorthash) {
+						var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty),since:lastLineID};
+						$.post("upload",o,function(data) {
+							lastLineID = data.id;
+							listenTimeout = setTimeout(listen,300);
+						},"json");
+					}
+					if(undoMark == undoPretties.length) {
+						$(this).addClass("inactive");
+					}
+					$("#undo").removeClass("inactive");
+				}
+			});
 		});
 	</script>
 	<script type="text/javascript" src="code.js"></script>
@@ -41,29 +108,36 @@
 		</div>
 		<hr />
 		<div id="bgs">
-			<div>0</div>
-			<div>1</div>
-			<div>2</div>
-			<div class="active">3</div>
-			<div>4</div>
+			<h3>0</h3>
+			<h3>1</h3>
+			<h3>2</h3>
+			<h3 class="active">3</h3>
+			<h3>4</h3>
 		</div>
 		<hr />
 		<div id="functions">
-			<div id="clear"><i class="icon-remove"></i></div>
-			<div id="share"><i class="icon-share"></i></div>
-			<div id="save"><i class="icon-save"></i></div>
-			
+			<div class="funcline">
+				<div id="clear">&#59191;<p>Clear</p></div>
+				<div id="share">&#59196;<p>Share</p></div>
+				<div id="save">&#128190;<p>Save</p></div>
+			</div>
+			<div class="funcline">
+				<div id="undo" class="inactive">&#59154;<p>Undo</p></div>
+				<div id="redo" class="inactive">&#10150;<p>Redo</p></div>
+			</div>
 		</div>
 		<hr />
 		<div id="minis"></div>
 	</div>
 	<div id="overlay"></div>
-	<canvas id="whiteboard"></canvas>
+	<canvas id="hwb"></canvas>
+	<canvas id="pwb"></canvas>
 	<div id="popup">
 		<h3 id="title"></h3>
 		<div id="message"></div>
 		<button id="ok">OK</button>
 	</div>
+	<div id="log"></div>
 </body>
 </html>
 

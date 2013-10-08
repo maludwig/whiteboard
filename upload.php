@@ -6,10 +6,11 @@ if(noneEmpty('action')) {
 		echo $brd->shorthash;
 	} else if($_REQUEST['action'] == "line") {
 		$lastid = 0;
-		if(noneEmpty("linedata","hash")) {
+		if(noneEmpty("linedata","hash","since")) {
 			$brd = new Board($_REQUEST['hash']);
-			$lastid = $brd->addLine($_REQUEST['linedata']);
-			echo json_encode(['id' => $lastid]);
+			$ret = $brd->getLines($_REQUEST['since']);
+			$ret->id = $brd->addLine($_REQUEST['linedata']);
+			echo json_encode($ret);
 		}
 	} else if($_REQUEST['action'] == "lines") {
 		$lastid = 0;
