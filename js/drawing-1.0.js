@@ -11,6 +11,7 @@ var h;
 var w;
 var drawColor;
 var drawMode = "pen";
+var drawLineWidth = 1;
 
 function setColor(c) {
 	c = typeof c !== 'undefined' ? c : drawColor;
@@ -31,6 +32,7 @@ function setColor(c) {
 }
 
 function drawWith(tool) {
+	tool = typeof tool !== 'undefined' ? tool : drawMode;
 	drawMode = tool;
 	if (tool == "eraser") {
 		hctx.globalCompositeOperation = "destination-out";
@@ -42,6 +44,18 @@ function drawWith(tool) {
 	setColor();
 	$("#tools>div").removeClass("active");
 	$("#" + tool).addClass("active");
+}
+
+function lineWidth(w) {
+	if (typeof w !== 'undefined') {
+		drawLineWidth = w;
+		hctx.lineWidth = w;
+		pctx.lineWidth = w;
+	} else {
+		hctx.lineWidth = drawLineWidth;
+		pctx.lineWidth = drawLineWidth;
+		return drawLineWidth;
+	}
 }
 
 function initCtx(hc,pc) {
@@ -101,21 +115,12 @@ function dot(pt) {
 	});
 }
 
-function lineWidth(w) {
-	if (typeof w !== 'undefined') {
-		hctx.lineWidth = w;
-		pctx.lineWidth = w;
-	} else {
-		return hctx.lineWidth;
-	}
-}
-
-function drawBoth(f) {
-	if(drawMode == "pen" || drawMode == "eraser") {
-		f(pctx,pcv);
-	}
-	if(drawMode == "highlighter" || drawMode == "eraser") {
+function drawBoth(f,force) {
+	if(drawMode == "highlighter" || drawMode == "eraser" || force) {
 		f(hctx,hcv);
+	}
+	if(drawMode == "pen" || drawMode == "eraser" || force) {
+		f(pctx,pcv);
 	}
 }
 
@@ -139,13 +144,20 @@ function resize(w, h){
 	drawBoth(function(ctx,cv) {
 		temp_cvs.width = w; 
 		temp_cvs.height = h;
-		temp_ctx.fillRect(0, 0, w, h);
 		temp_ctx.drawImage(cv, 0, 0);
 		// resize & clear the original canvas and copy back in the cached pixel data //
-		cv.width = w; 
-		cv.height = h;
+		$(cv).attr({
+			width: w,
+			height: h
+		}).css({
+			width: w + "px",
+			height: h + "px"
+		});
 		ctx.drawImage(temp_cvs, 0, 0);
-	});
+		setColor();
+		drawWith();
+		lineWidth();
+	}, true);
 }
 
 function Color(c) {

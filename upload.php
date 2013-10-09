@@ -9,7 +9,7 @@ if(noneEmpty('action')) {
 		if(noneEmpty("linedata","hash","since")) {
 			$brd = new Board($_REQUEST['hash']);
 			$ret = $brd->getLines($_REQUEST['since']);
-			$ret->id = $brd->addLine($_REQUEST['linedata']);
+			$ret['id'] = $brd->addLine($_REQUEST['linedata']);
 			echo json_encode($ret);
 		}
 	} else if($_REQUEST['action'] == "lines") {

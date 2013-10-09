@@ -324,6 +324,10 @@ h1,h2,h3,h4,h5 {
 	left: 70px;
 }
 
+.funcline > #dorp {
+	left: 130px;
+}
+
 .funcline > #redo.inactive, .funcline > #undo.inactive {
 	color: #8b8b8b;
 }

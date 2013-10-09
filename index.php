@@ -20,7 +20,12 @@
 		var undoPretties;
 		var undoMark = -1;
 		$(function() {
+			$(window).resize(function() {
+				//alert("res");
+				resize($(window).width(), $(window).height());
+			});
 			$("#undo").click(function() {
+				minilog("undo");
 				var tempDrawColor = drawColor;
 				var tempWidth = lineWidth();
 				var tempDrawMode = drawMode;
@@ -45,7 +50,7 @@
 				$("#redo").removeClass("inactive");
 				
 				if(shorthash) {
-					clearTimeout(listenTimeout);
+					stopListening();
 					var o = {action:"clear",hash:shorthash};
 					$.post("upload",o,function(data) {
 						lastLineID = data.id;
@@ -56,12 +61,13 @@
 						var ls = {action:"lines",hash:shorthash,linedata:JSON.stringify(ld)};
 						$.post("upload",ls,function(data){
 							lastLineID = data.id;
-							listenTimeout = setTimeout(listen,300);
+							listen();
 						},"json");
 					},"json");
 				}
 			});
 			$("#redo").click(function() {
+				minilog("redo");
 				if(undoMark == undoPretties.length) {
 					return;
 				}
@@ -69,12 +75,12 @@
 					pretty = new Pretty(undoPretties[undoMark]);
 					pretties.push(pretty);
 					undoMark++;
-					clearTimeout(listenTimeout);
+					stopListening();
 					if(shorthash) {
 						var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty),since:lastLineID};
 						$.post("upload",o,function(data) {
 							lastLineID = data.id;
-							listenTimeout = setTimeout(listen,300);
+							listen();
 						},"json");
 					}
 					if(undoMark == undoPretties.length) {
@@ -82,6 +88,9 @@
 					}
 					$("#undo").removeClass("inactive");
 				}
+			});
+			$("#dorp").click(function(){
+				stopListening("bitch");
 			});
 		});
 	</script>
@@ -124,6 +133,7 @@
 			<div class="funcline">
 				<div id="undo" class="inactive">&#59154;<p>Undo</p></div>
 				<div id="redo" class="inactive">&#10150;<p>Redo</p></div>
+				<div id="dorp">&#10150;<p>ECS</p></div>
 			</div>
 		</div>
 		<hr />

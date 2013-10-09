@@ -7,6 +7,7 @@ var lastLineID = 0;
 var pretties = [];
 var listenTimeout; 
 var mDown = false;
+var xhr;
 
 var basics=function(o){
 	var sRet = "";
@@ -33,12 +34,12 @@ function end(x,y) {
 	pretty.addPoint(new Point(x,y));
 	pretty.endLine();
 	pretties.push(pretty);
-	clearTimeout(listenTimeout);
+	stopListening();
 	if(shorthash) {
 		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty),since:lastLineID};
 		$.post("upload",o,function(data) {
 			drawLines(data);
-			listenTimeout = setTimeout(listen,300);
+			listen();
 		},"json");
 	}
 	undoMark = -1;
@@ -98,8 +99,15 @@ $(window).load(function(){
 	$("*").attr("unselectable","on");
 	
 	$("#save").click(function() {
-		var $img = $('<img />').attr("src",cv.toDataURL("image/png")).addClass("mini");
-		var $a = $("<a />").attr("href",cv.toDataURL("image/png")).attr("target","_blank");
+		var temp_cvs = document.createElement('canvas');
+		var temp_ctx = temp_cvs.getContext('2d');
+		temp_cvs.width = $(window).width(); 
+		temp_cvs.height = $(window).height(); 
+		drawBoth(function(ctx,cv) {
+			temp_ctx.drawImage(cv, 0, 0);
+		}, true);
+		var $img = $('<img />').attr("src",temp_cvs.toDataURL("image/png")).addClass("mini");
+		var $a = $("<a />").attr("href",temp_cvs.toDataURL("image/png")).attr("target","_blank");
 		$a.append($img);
 		$("#minis").prepend($a.clone());
 		var $msg = $("<div><p>Click the image below to open it in a new window. Right-click the image to save.</p><div/>").append($a);
@@ -242,11 +250,26 @@ function minilog(msg) {
 	$("#log").prepend(msg);
 }
 function listen() {
+	minilog("listen");
+	if(listenTimeout || xhr) {
+		minilog("shit");
+		//stopListening();
+		return;
+	}
 	var o = {action:"getlines",hash:shorthash,since:lastLineID};
-	$.get("upload",o,function(data) {
+	xhr = $.get("upload",o,function(data) {
 		drawLines(data);
-		listenTimeout = setTimeout(listen,300);
+		listenTimeout = Timeout(listen,300);
 	},"json");
+}
+function stopListening() {
+	minilog("stop listen");
+	if(listenTimeout) {
+		listenTimeout.clear();
+	}
+	if(xhr) {
+		xhr.abort();
+	}
 }
 
 function drawLines(data) {
@@ -256,7 +279,7 @@ function drawLines(data) {
 		} else {
 			pretties.push(new Pretty(JSON.parse(data.jsons[i])));
 		}
-		lastLineID = data.id;
+		lastLineID = Math.max(data.id,lastLineID);
 	}
 }
 
@@ -266,3 +289,17 @@ function popup(title,msg) {
 	$("#popup").center();
 	$("#popup").show(400);
 }
+
+function Timeout(fn, interval) {
+    this.cleared = false;
+	this.fn = fn;
+    this.id = setTimeout(this.func, interval);
+}
+Timeout.prototype.clear = function () {
+	clearTimeout(this.id);
+	this.cleared = true;
+};
+Timeout.prototype.func = function() {
+	this.fn();
+	this.cleared = true;
+};
