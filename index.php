@@ -12,18 +12,26 @@
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/linearalgebra-1.0.js"></script>
 	<script type="text/javascript" src="js/drawing-1.0.js"></script>
+	<script type="text/javascript" src="js/drawing-extras-1.0.js"></script>
 	<script type="text/javascript" src="js/pretty-1.0.js"></script>
 	<script type="text/javascript" src="js/jquery.hammer.min.js"></script>
 	<script type="text/javascript" src="js/jquery-center.1.2.js"></script>
 	<script type="text/javascript" src="js/modernizr.custom.74125.js"></script>
+	<script type="text/javascript" src="code.js"></script>
+	<script type="text/javascript" src="perfectcode.js"></script>
+	<script type="text/javascript" src="server.js"></script>
 	<script>
 		var undoPretties;
 		var undoMark = -1;
+		var svr;
+		$(window).load(function() {
+			initCtx('#hwb','#pwb');
+			if(window.location.hash){
+				svr = new Server(window.location.hash.slice(1));
+				$("#share").addClass("active");
+			}
+		});
 		$(function() {
-			$(window).resize(function() {
-				//alert("res");
-				resize($(window).width(), $(window).height());
-			});
 			$("#undo").click(function() {
 				minilog("undo");
 				var tempDrawColor = drawColor;
@@ -51,18 +59,9 @@
 				
 				if(shorthash) {
 					stopListening();
-					var o = {action:"clear",hash:shorthash};
+					var o = {action:"undo",hash:shorthash, id:undoPretties[undoMark].id};
 					$.post("upload",o,function(data) {
 						lastLineID = data.id;
-						var ld = [];
-						for(var i=0;i<pretties.length;i++) {
-							ld.push(JSON.stringify(pretties[i]));
-						}
-						var ls = {action:"lines",hash:shorthash,linedata:JSON.stringify(ld)};
-						$.post("upload",ls,function(data){
-							lastLineID = data.id;
-							listen();
-						},"json");
 					},"json");
 				}
 			});
@@ -89,12 +88,8 @@
 					$("#undo").removeClass("inactive");
 				}
 			});
-			$("#dorp").click(function(){
-				stopListening("bitch");
-			});
 		});
 	</script>
-	<script type="text/javascript" src="code.js"></script>
 </head>
 
 <body>

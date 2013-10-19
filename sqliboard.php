@@ -17,7 +17,22 @@ class Board {
 		if (!$result) {
 			throw new Exception($mysqli->error);
 		}
-		return $this->addLine("clear");
+		return $this->addRow("clear",0);
+	}
+	
+	public function remove($code) {
+		//Using the global $mysqli connection
+		if(!is_numeric($code)) {
+			throw new Exception("Non-numeric code");
+		}
+		$mysqli = $GLOBALS['mysqli'];
+		$query = "DELETE FROM `lines` WHERE board=" . $mysqli->real_escape_string($this->id);
+		$query .= " AND code=" . $code . ' ORDER BY id DESC LIMIT 1';
+		$result = $mysqli->query($query);
+		if (!$result) {
+			throw new Exception($mysqli->error);
+		}
+		return $this->addRow('undo',$code);
 	}
 	
 	public function getLines($since = "") {
@@ -35,7 +50,17 @@ class Board {
 		if ($result->num_rows > 0) {
 			while ($row = $result->fetch_assoc()) {
 				$maxid = max($maxid,$row['id']);
-				$jsons[] = $row['json'];
+				if($row['json'] == "clear") {
+					$json = ["type" => "clear"];
+				} else if($row['json'] == "undo") {
+					$json = ["type" => "undo"];
+				} else {
+					$json = json_decode($row['json'],true);
+					$json['type'] = 'line';
+				}
+				$json['id'] = $row['id'];
+				$json['code'] = $row['code'];
+				$jsons[] = $json;
 			}
 			return ["id" => $maxid, "jsons" => $jsons];
 		} else {
@@ -44,15 +69,18 @@ class Board {
 	}
 	
 	public function addLine($json) {
+		return $this->addRow($json,json_decode($json,true)['code']);
+	}
+	
+	public function addRow($json,$code) {
 		//Using the global $mysqli connection
 		$mysqli = $GLOBALS['mysqli'];
-		$query = "INSERT INTO `lines` (board,json) VALUES (" . $mysqli->real_escape_string($this->id) . ",'" . $mysqli->real_escape_string($json) . "')";
+		$query = "INSERT INTO `lines` (board,code,json) VALUES (" . $mysqli->real_escape_string($this->id) . "," . $mysqli->real_escape_string($code) . ",'" . $mysqli->real_escape_string($json) . "')";
 		$result = $mysqli->query($query);
 		if (!$result) {
 			throw new Exception($mysqli->error);
 		}
 		$this->line = $mysqli->insert_id;
-		$this->pointCount = 0;
 		return $this->line;
 	}
 	

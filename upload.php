@@ -5,28 +5,30 @@ if(noneEmpty('action')) {
 		$brd = new Board();
 		echo $brd->shorthash;
 	} else if($_REQUEST['action'] == "line") {
-		$lastid = 0;
-		if(noneEmpty("linedata","hash","since")) {
+		if(noneEmpty("linedata","hash")) {
 			$brd = new Board($_REQUEST['hash']);
-			$ret = $brd->getLines($_REQUEST['since']);
-			$ret['id'] = $brd->addLine($_REQUEST['linedata']);
-			echo json_encode($ret);
+			echo $brd->addLine($_REQUEST['linedata']);
 		}
 	} else if($_REQUEST['action'] == "lines") {
-		$lastid = 0;
 		if(noneEmpty("linedata","hash")) {
 			$brd = new Board($_REQUEST['hash']);
 			$lines = json_decode($_REQUEST['linedata']);
 			foreach($lines as $key => $val) {
-				$lastid = $brd->addLine($val);
+				$idsp[] = $brd->addLine($val);
 			}
-			echo json_encode(['id' => $lastid]);
+			echo json_encode($ids);
 		}
 	} else if($_REQUEST['action'] == "clear") {
 		$lastid = 0;
 		if(noneEmpty("hash")) {
 			$brd = new Board($_REQUEST['hash']);
-			echo json_encode(['id' => $brd->clear()]);
+			echo $brd->clear();
+		}
+	} else if($_REQUEST['action'] == "undo") {
+		$lastid = 0;
+		if(noneEmpty("hash","code")) {
+			$brd = new Board($_REQUEST['hash']);
+			$brd->remove($_REQUEST['code']);
 		}
 	} else if($_REQUEST['action'] == "getlines") {
 		if(allSet("hash","since")) {

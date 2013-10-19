@@ -1,7 +1,7 @@
 /*jshint -W117 */
 /*jshint -W098 */
 
-function Pretty(json) {
+function Pretty(json,drawImmediately) {
 	this.pts = [];
 	if(json) {
 		var lastc = drawColor;
@@ -14,29 +14,31 @@ function Pretty(json) {
 		this.color = drawColor;
 		this.drawMode = drawMode;
 		this.lineWidth = lineWidth();
-		if(json.pts.length > 2) {
-			this.pts.push(new Point(json.pts[0].x,json.pts[0].y));
-			for(var i=1;i<json.pts.length;i++) {
-				p = new Point(json.pts[i].x,json.pts[i].y);
-				this.pts.push(p);
-				var k = this.pts.length;
-				if(k === 3) {
-					prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
-				} else if (k > 3) {
-					pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
+		if(drawImmediately) {
+			if(json.pts.length > 2) {
+				this.pts.push(new Point(json.pts[0].x,json.pts[0].y));
+				for(var i=1;i<json.pts.length;i++) {
+					p = new Point(json.pts[i].x,json.pts[i].y);
+					this.pts.push(p);
+					var k = this.pts.length;
+					if(k === 3) {
+						prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
+					} else if (k > 3) {
+						pretty4(this.pts[k-4],this.pts[k-3],this.pts[k-2],this.pts[k-1]);
+					}
 				}
+				this.endLine();
+			} else if (json.pts.length == 2) {
+				pt1 = new Point(json.pts[0].x,json.pts[0].y);
+				pt2 = new Point(json.pts[1].x,json.pts[1].y);
+				this.pts.push(pt1);
+				this.pts.push(pt2);
+				simpleLine(pt1,pt2);
+			} else if (json.pts.length == 1) {
+				p = new Point(json.pts[0].x,json.pts[0].y);
+				this.pts.push(p);
+				dot(p);
 			}
-			this.endLine();
-		} else if (json.pts.length == 2) {
-			pt1 = new Point(json.pts[0].x,json.pts[0].y);
-			pt2 = new Point(json.pts[1].x,json.pts[1].y);
-			this.pts.push(pt1);
-			this.pts.push(pt2);
-			simpleLine(pt1,pt2);
-		} else if (json.pts.length == 1) {
-			p = new Point(json.pts[0].x,json.pts[0].y);
-			this.pts.push(p);
-			dot(p);
 		}
 		setColor(lastc);
 		lineWidth(lastw);
@@ -68,7 +70,7 @@ Pretty.prototype.addPointAndDraw = function (p,mag) {
 	this.pts.push(p);
 	this.magsum = 0;
 	var k = this.pts.length;
-	if(k === 3) {
+	if(k === 3 && drawMode != "highlighter") {
 		prettyEnd(this.pts[0],this.pts[1],this.pts[2]);
 	} else if (k > 3) {
 //		if(mag < 10) {
@@ -80,7 +82,7 @@ Pretty.prototype.addPointAndDraw = function (p,mag) {
 };
 Pretty.prototype.endLine = function() {
 	var k = this.pts.length;
-	if(k > 2) {
+	if(k > 2 && drawMode != "highlighter") {
 		prettyEnd(this.pts[k-1],this.pts[k-2],this.pts[k-3]);
 	} else if (k == 2) {
 		simpleLine(this.pts[0],this.pts[1]);
