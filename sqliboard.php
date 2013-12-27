@@ -68,12 +68,11 @@ class Board {
 		}
 	}
 	
-	public function addLine($json) {
-		return $this->addRow($json,json_decode($json,true)['code']);
+	public function addLine($line) {
+		return $this->addRow(json_encode($line),$line['code']);
 	}
 	
 	public function addRow($json,$code) {
-		//Using the global $mysqli connection
 		$mysqli = $GLOBALS['mysqli'];
 		$query = "INSERT INTO `lines` (board,code,json) VALUES (" . $mysqli->real_escape_string($this->id) . "," . $mysqli->real_escape_string($code) . ",'" . $mysqli->real_escape_string($json) . "')";
 		$result = $mysqli->query($query);
@@ -128,6 +127,7 @@ class Board {
 			}
 			$this->id = $mysqli->insert_id;
 			$this->hash = $hash;
+			$shorthash = str_pad($shorthash,8,"0");
 			$this->shorthash = $shorthash;
 		} else {
 			if(!ctype_xdigit($shorthash)){
@@ -138,7 +138,9 @@ class Board {
 					throw new Exception('Board does not exist');
 				}
 			}
-			$this->populate($shorthash);
+			$shorthash = str_pad($shorthash,8,"0");
+			$this->shorthash = $shorthash;
+			$this->populate();
 		}
 	}
 	
@@ -164,12 +166,16 @@ class Board {
 		}
 	}
 	
-	public function populate($shorthash) {
+	public function populate($shorthash = "") {
+		if ($shorthash === "") {
+			$shorthash = $this->shorthash;
+		}
 		$mysqli = $GLOBALS['mysqli'];
 		if(!ctype_xdigit($shorthash)){
 			throw new Exception("Non-hex id");
 		}
 		$shorthash = str_pad($shorthash,8,"0");
+		$this->shorthash = $shorthash;
 		$query = "SELECT id,HEX(hash) as hash,HEX(shorthash) as sh FROM boards WHERE shorthash=0x" . $shorthash;
 		$result = $mysqli->query($query);
 		if (!$result) {
@@ -179,9 +185,29 @@ class Board {
 			$row = $result->fetch_assoc();
 			$this->id = $row['id'];
 			$this->hash = $row['hash'];
-			$this->shorthash = $shorthash;
 		} else {
 			throw new Exception("No rows found");
 		}
+	}
+	
+	public function nextClient() {
+		$mysqli = $GLOBALS['mysqli'];
+		$query = "UPDATE boards SET clients = MOD(clients + 1, 256) WHERE shorthash=0x" . $this->shorthash;
+		$result = $mysqli->query($query);
+		if (!$result) {
+			throw new Exception($mysqli->error);
+		}
+		$query = "SELECT clients FROM boards WHERE shorthash=0x" . $this->shorthash;
+		$result = $mysqli->query($query);
+		if (!$result) {
+			throw new Exception($mysqli->error);
+		}
+		if ($result->num_rows > 0) {
+			$row = $result->fetch_assoc();
+			$lastclient = $row['clients'];
+		} else {
+			throw new Exception("No rows found. Query: " . $query);
+		}
+		return $lastclient;
 	}
 }

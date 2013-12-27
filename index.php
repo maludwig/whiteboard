@@ -14,9 +14,7 @@
 	<script type="text/javascript" src="js/drawing-1.0.js"></script>
 	<script type="text/javascript" src="js/drawing-extras-1.0.js"></script>
 	<script type="text/javascript" src="js/pretty-1.0.js"></script>
-	<script type="text/javascript" src="js/jquery.hammer.min.js"></script>
 	<script type="text/javascript" src="js/jquery-center.1.2.js"></script>
-	<script type="text/javascript" src="js/modernizr.custom.74125.js"></script>
 	<script type="text/javascript" src="code.js"></script>
 	<script type="text/javascript" src="perfectcode.js"></script>
 	<script type="text/javascript" src="server.js"></script>

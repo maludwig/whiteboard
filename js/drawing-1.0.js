@@ -93,10 +93,8 @@ function initCtx(hc,pc) {
 		drawWith("pen");
 	} else {
 		alert('You need canvas support to view this correctly.');
-		hctx = undefined;
 	}
 }
-
 
 function simpleLine(pt1,pt2) {
 	drawBoth(function(ctx) {
