@@ -24,6 +24,43 @@ Point.prototype.add = function(v) {
 Point.prototype.toString = function() {
 	return "[" + this.x + ", " + this.y + "]";
 };
+Point.serialize = function(pt) {
+	if(pt instanceof Point) {
+		return [pt.x,pt.y];
+	} else {
+		var ret = [];
+		for(var i=0;i<pt.length;i++) {
+			ret.push(pt[i].x);
+			ret.push(pt[i].y);
+		}
+		return ret;
+	}
+};
+Point.deserialize = function(data) {
+	var ret = [];
+	for(var i=0;i<data.length;i+=2) {
+		ret.push(new Point(data[i],data[i+1]));
+	}
+	return ret;
+};
+Point.bounds = function(points) {
+	var pts = arguments.length == 1 ? points : arguments;
+	var minx=pts[0].x,miny=pts[0].y,maxx=pts[0].x,maxy=pts[0].y;
+	for(var i=1;i<pts.length;i++) {
+		minx = Math.min(pts[i].x,minx);
+		miny = Math.min(pts[i].y,miny);
+		maxx = Math.max(pts[i].x,maxx);
+		maxy = Math.max(pts[i].y,maxy);
+	}
+	return {
+		"minx":minx,
+		"miny":miny,
+		"maxx":maxx,
+		"maxy":maxy,
+		"width":maxx-minx,
+		"height":maxy-miny
+	};
+}
 
 function Vector(o,t) {
 	if(o instanceof Vector) {
@@ -249,5 +286,3 @@ function Triangle(a,b,c) {
 	this.degb = this.radb * (180 / Math.PI);
 	this.degc = this.radc * (180 / Math.PI);
 }
-
-function sign(x) { return x > 0 ? 1 : x < 0 ? -1 : 0; }

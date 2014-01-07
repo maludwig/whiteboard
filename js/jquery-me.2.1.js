@@ -159,64 +159,27 @@
 		}
 	}
 	
-	/**
-	 * Draws a wandering bubble
-	 */
-	$.fn.bubble = function (options) {
-		var i, sOut, el, ctx, opt = {
-			parent:this,
-			id:$.rstring(),
-			cid:$.rstring(),
-			x:0,
-			y:0,
-			radius:$.rbetween(70,120),
-			wanderradius: 70,
-			color:$.rcolor(),
-			text:"",
-			link:"",
-			pic:"",
-			callback: function(bubble) {return;}
-		};
-		$.extend(opt,options);
-		$(opt.parent).append('<a href="' + opt.link + '" id="' + opt.id + '" class="bubble" width="' + (opt.radius * 2) + '" height="' + (opt.radius * 2) + '"></a>');
-		jLink = $("#" + opt.id);
-		jLink.append('<canvas id="' + opt.cid + '" class="bubble" width="' + (opt.radius * 2) + '" height="' + (opt.radius * 2) + '"></canvas>');
-		el = $("#" + opt.cid)[0];
-		if (G_vmlCanvasManager) {
-			G_vmlCanvasManager.initElement(el);
-		}
-		ctx = el.getContext("2d");
-		ctx.fillStyle = opt.color;
-		ctx.beginPath();
-		ctx.arc(opt.radius, opt.radius, opt.radius, 0, Math.PI*2, true); 
-		ctx.closePath();
-		ctx.fill();
-		jLink.css({position:"absolute",top:opt.y + "px",left:opt.x + "px"});
-		jLink.wander({
-			radius:opt.wanderradius
-		});
-		if(opt.pic) {
-			jLink.append('<img src="' + opt.pic + '" />');
-			$("#" + opt.id + " img").load(function() {
-				$("#" + opt.id + " img").center({vertical:false});
-				$("#" + opt.id + " img").css({top:"20px"});
-			});
-		}
-		jLink.append('<p>' + opt.text + '</p>');
-		opt.callback(opt);
-		return this;
-	}
-	
 	/*
 		Makes a random integer number between min (inclusive) and max (exclusive)
 	*/
-	$.rbetween = function (min,max) {
+	$.rand = function (min,max) {
 		if (typeof max === "undefined") {
-			return Math.floor(Math.random() * min);
+			if (typeof min == "number") {
+				//$.rand(6)
+				return Math.floor(Math.random() * min);
+			} else if (typeof min === "undefined") {
+				return Math.random();
+			} else {
+				//$.rand(['a','b','c']);
+				return min[Math.floor(Math.random() * min.length)];
+			}
+		} else {
+			if(typeof min == "number") {
+				//$.rand(1,10);
+				return Math.floor((Math.random() * (max - min)) + min);
+			}
 		}
-		return Math.floor((Math.random() * (max - min)) + min);
 	}
-	
 	/*
 		Makes a string of random characters
 	*/
@@ -228,39 +191,15 @@
 		$.extend(opt,options);
 		sOut = "";
 		for (i = 0; i < opt.length; i++) {
-			sOut += opt.charset.charAt($.rbetween(opt.charset.length));
+			sOut += opt.charset.charAt($.rand(opt.charset.length));
 		}
 		return sOut;
 	}
-	$.rcolor = function () {
-		if (availableColors.length < 1) {
-			availableColors = PALETTE.slice(0);
-		}
-		return availableColors.splice($.rbetween(availableColors.length),1)[0];
-	}
-	
-	$.fn.hoverOrClick = function (callIn, callOut, callFinal) {
-		$.each($(this),function(key,elem) {
-			var jThis = $(this);
-			//alert(jThis.html());
-			if (Modernizr.touch){
-				jThis.click(function(event) {
-					//alert(jThis.data("secondTouch"));
-					if(!jThis.data("secondTouch")) {
-						callIn(event,jThis);
-						setTimeout(function() {
-							callOut(event,jThis);
-							jThis.data({"secondTouch":false});
-						},7000);
-						jThis.data("secondTouch",true);
-					} else {
-						callFinal(event,jThis);
-					}
-				});
-			} else {
-				jThis.click(callFinal).hover(callIn, callOut);
-			}
-			return this;
-		});
+	$.rcolor = function(r,g,b) {
+		var hexset = "0123456789ABCDEF";
+		r = typeof r == "undefined" ? $.rstring({length:2,charset:hexset}) : r;
+		g = typeof g == "undefined" ? $.rstring({length:2,charset:hexset}) : g;
+		b = typeof b == "undefined" ? $.rstring({length:2,charset:hexset}) : b;
+		return "#" + r + g + b;
 	}
 })(jQuery);// JavaScript Document
