@@ -9,113 +9,114 @@
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/jquery-me.2.1.js"></script>
-	<script type="text/javascript" src="js/surface.js"></script>
-	<script type="text/javascript" src="js/flow.js"></script>
 	<script type="text/javascript" src="js/color.js"></script>
 	<script type="text/javascript" src="js/hook.js"></script>
 	<script type="text/javascript" src="js/touch.js"></script>
 	<script type="text/javascript" src="js/linearalgebra-1.2.js"></script>
+	<script type="text/javascript" src="menu.js"></script>
+	<script type="text/javascript" src="surface.js"></script>
+	<script type="text/javascript" src="flow.js"></script>
+	<script type="text/javascript" src="undo.js"></script>
 	<style>
-		canvas {
-			border: 2px solid black;
-		}
-		#scratch {
-			border: 1px solid blue;
-		}
 	</style>
 	<script>
-		var scratch;
-		var scratchFlow;
-		var lastt;
-		var flows = [];
 		$(function(){
 			hiddensurface = new Surface({drawing:false});
-			scratch = new Surface({canvas:"#scratch",strokeWidth:1,color:"#C42169"});
-			modern = new Surface({canvas:"#modern",strokeWidth:1,color:"#C42169"});
-			historic = new Surface({canvas:"#historic",strokeWidth:1,color:"#C42169"});
-			$("#overlay").touchStart(testLines);
-			$("#overlay").touchMove(testLines);
-			$("#overlay").touchEnd(testLines);
-			scratchFlow = new Flow({
-				surface:scratch,
-				color:$.rcolor()
-			});
-			
-		});
-		testLines = function(w,z) {
-			var x,y;
-			for(var i=0;i<20;i++) {
-				x=w;
-				y=z;
-				scratchFlow = new Flow({
-					surface:scratch,
-					color:$.rcolor(undefined,undefined,"FF"),
-					strokeWidth:$.rand(1,9),
-					tool:$.rand(['pen','highlighter','eraser'])
-				});
-				for(var k=0;k<20;k++) {
-					x += $.rand(-50,50);
-					y += $.rand(-50,50);
-					scratchFlow.point(x,y);
+			scratch = new Surface({canvas:"#scratch",strokeWidth:80,color:"#C42169"});
+			modern = new Surface({canvas:"#modern",strokeWidth:20,color:"#C42169"});
+			historic = new Surface({canvas:"#historic",strokeWidth:20,color:"#1b3df5"});
+			$("#overlay").touchStart(start);
+			$("#overlay").touchMove(move);
+			$("#overlay").touchEnd(end);
+			scratchFlow = newFlow();
+			$(window).keyup(function(e){
+				if(e.which==90){
+					undo();
+				} else if(e.which==89) {
+					redo();
 				}
-				flows.push(scratchFlow);
-				//Flow.deserialize(Flow.serialize(scratchFlow));
-			}
-			var t=new Date().getTime();
-			
-			for(var i=0;i<20;i++) {
-				flows[i].redraw();
-			}
-			log((new Date().getTime()-t)/1000);
-		}
-		function start(x,y) {
-			if(lastt) {
-				//log((new Date().getTime()-lastt)/1000);
-			}
-			//log("start");
-			scratchFlow.point(x,y);
-			
-		}
-		var cc = 0;
-		function move(x,y) {
-			cc++;
-			if(cc%1===0) {
-				//log("move");
-				scratchFlow.point(x,y);
-			}
-			
-		//	scratch.ctx.lineTo(x,y);
-		//	scratch.ctx.stroke();
-		}
-		
-		function end(x,y) {
-			//log("end");
-			scratchFlow.point(x,y);
-			//scratchFlow.newSurface();
-			//$("#lines").append(scratchFlow.s.cv);
-			//Flow.deserialize(Flow.serialize(scratchFlow));
-			
-			scratchFlow = new Flow({
-				surface:scratch,
-				color:$.rcolor()
 			});
-			lastt = new Date().getTime();
-		//	scratch.ctx.lineTo(x,y);
-		//	scratch.ctx.stroke();
-		//	scratch.tool("highlighter");
-		}
+			menu.initialize();
+		});
 		function log(msg) {
 			$("#log").append("<div>" + msg + "</div>");
+		}
+		function newFlow() {
+			var c;
+			t = $.rand(['highlighter','pen','eraser']);
+			if(t=="highlighter"){
+				scratch.$cv.addClass("highlighting");
+			} else {
+				if(t=="eraser") {
+					c="#FFF";
+				} else {
+					c = $.rand(['#F00','#0F0',"#00F"])
+					//c=$.rcolor(undefined,undefined,"FF");
+				}
+				scratch.$cv.removeClass("highlighting");
+			}
+			return new Flow({
+				surface:scratch,
+				color:c,
+				strokeWidth:$.rand(20,90),
+				tool:'pen'
+			});
 		}
 	</script>
 </head>
 
 <body>
+	<div id="sidebar" class="open">
+		<div id="sideexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
+		<h3>Whiteboard</h3>
+		<hr />
+		<div id="palettes">
+			<div id="palexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
+		</div>
+		<hr />
+		<div id="sizes">
+			<div id="sizeexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
+		</div>
+		<hr />
+		<div id="tools">
+			<div id="pen" class="active"><i class="icon-pencil"></i></div>
+			<div id="highlighter"><i class="icon-sun"></i></div>
+			<div id="eraser"><i class="icon-eraser"></i></div>
+		</div>
+		<hr />
+		<div id="bgs">
+			<h3>0</h3>
+			<h3>1</h3>
+			<h3>2</h3>
+			<h3 class="active">3</h3>
+			<h3>4</h3>
+		</div>
+		<hr />
+		<div id="functions">
+			<div class="funcline">
+				<div id="clear">&#59191;<p>Clear</p></div>
+				<div id="share">&#59196;<p>Share</p></div>
+				<div id="save">&#128190;<p>Save</p></div>
+			</div>
+			<div class="funcline">
+				<div id="undo" class="inactive">&#59154;<p>Undo</p></div>
+				<div id="redo" class="inactive">&#10150;<p>Redo</p></div>
+				<div id="dorp">&#10150;<p>ECS</p></div>
+			</div>
+		</div>
+		<hr />
+		<div id="minis"></div>
+	</div>
 	<div id="log"></div>
 	<div id="overlay"></div>
 	<div id="lines"></div>
 	<canvas id="historic"></canvas>
 	<canvas id="modern"></canvas>
 	<canvas id="scratch"></canvas>
+	<div id="popup">
+		<h3 id="title"></h3>
+		<div id="message"></div>
+		<button id="ok">OK</button>
+	</div>
 </body>
 </html>

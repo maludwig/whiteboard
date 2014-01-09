@@ -63,6 +63,7 @@ function Surface(opt) {
 	}
 	if (this.cv.getContext){
 		this.ctx = this.cv.getContext('2d');
+		this.ctx.lineCap = 'round';
 		this.color(options.color);
 		this.strokeWidth(options.strokeWidth);
 		this.tool(options.tool);
@@ -143,4 +144,15 @@ Surface.prototype = {
 			this.ctx.fill();
 		}
 	},
+	//Draws a semicircle centred at pt1, pointing away from pt2
+	semicircle: function(pt1,pt2) {
+		if(this.drawing) {
+			var dx = pt1.x - pt2.x;
+			var dy = pt1.y - pt2.y;
+			var deg = Math.atan2(dy,dx);
+			this.ctx.beginPath();
+			this.ctx.arc(pt1.x-this.ox,pt1.y-this.oy,this.strokeWidth()/2,(-0.5*Math.PI)+deg,(0.5*Math.PI)+deg);
+			this.ctx.fill();
+		}
+	}
 };

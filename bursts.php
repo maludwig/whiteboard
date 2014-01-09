@@ -15,14 +15,6 @@
 	<script type="text/javascript" src="js/hook.js"></script>
 	<script type="text/javascript" src="js/touch.js"></script>
 	<script type="text/javascript" src="js/linearalgebra-1.2.js"></script>
-	<style>
-		canvas {
-			border: 2px solid black;
-		}
-		#scratch {
-			border: 1px solid blue;
-		}
-	</style>
 	<script>
 		var scratch;
 		var scratchFlow;
@@ -31,20 +23,13 @@
 		$(function(){
 			hiddensurface = new Surface({drawing:false});
 			scratch = new Surface({canvas:"#scratch",strokeWidth:1,color:"#C42169"});
-			modern = new Surface({canvas:"#modern",strokeWidth:1,color:"#C42169"});
-			historic = new Surface({canvas:"#historic",strokeWidth:1,color:"#C42169"});
 			$("#overlay").touchStart(testLines);
 			$("#overlay").touchMove(testLines);
 			$("#overlay").touchEnd(testLines);
-			scratchFlow = new Flow({
-				surface:scratch,
-				color:$.rcolor()
-			});
-			
 		});
 		testLines = function(w,z) {
 			var x,y;
-			for(var i=0;i<20;i++) {
+			for(var i=0;i<5;i++) {
 				x=w;
 				y=z;
 				scratchFlow = new Flow({
@@ -54,58 +39,12 @@
 					tool:$.rand(['pen','highlighter','eraser'])
 				});
 				for(var k=0;k<20;k++) {
-					x += $.rand(-50,50);
-					y += $.rand(-50,50);
+					x += $.rand(-30,30);
+					y += $.rand(-30,30);
 					scratchFlow.point(x,y);
 				}
-				flows.push(scratchFlow);
 				//Flow.deserialize(Flow.serialize(scratchFlow));
 			}
-			var t=new Date().getTime();
-			
-			for(var i=0;i<20;i++) {
-				flows[i].redraw();
-			}
-			log((new Date().getTime()-t)/1000);
-		}
-		function start(x,y) {
-			if(lastt) {
-				//log((new Date().getTime()-lastt)/1000);
-			}
-			//log("start");
-			scratchFlow.point(x,y);
-			
-		}
-		var cc = 0;
-		function move(x,y) {
-			cc++;
-			if(cc%1===0) {
-				//log("move");
-				scratchFlow.point(x,y);
-			}
-			
-		//	scratch.ctx.lineTo(x,y);
-		//	scratch.ctx.stroke();
-		}
-		
-		function end(x,y) {
-			//log("end");
-			scratchFlow.point(x,y);
-			//scratchFlow.newSurface();
-			//$("#lines").append(scratchFlow.s.cv);
-			//Flow.deserialize(Flow.serialize(scratchFlow));
-			
-			scratchFlow = new Flow({
-				surface:scratch,
-				color:$.rcolor()
-			});
-			lastt = new Date().getTime();
-		//	scratch.ctx.lineTo(x,y);
-		//	scratch.ctx.stroke();
-		//	scratch.tool("highlighter");
-		}
-		function log(msg) {
-			$("#log").append("<div>" + msg + "</div>");
 		}
 	</script>
 </head>

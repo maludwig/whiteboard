@@ -114,6 +114,11 @@ h1,h2,h3,h4,h5 {
 	z-index: 50;
 }
 
+.highlighting {
+	opacity:0.2;
+	filter:Alpha(opacity=20);
+}
+
 #overlay {
 	position: absolute;
 	left: 0;
@@ -355,7 +360,7 @@ h1,h2,h3,h4,h5 {
 	padding: 1em;
 	text-align:right;
 	font-size: 16x;
-	width:10em;
+	width:30em;
 	background: rgba(255,255,255,0.7);
 	z-index:200;
 }

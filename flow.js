@@ -3,7 +3,6 @@
 
 //Requires color.js, linearalgebra-1.0.js and surface.js
 
-
 function Flow(opt) {
 	opt = typeof opt === "undefined" ? {} : opt;
 	var sopt = {};
@@ -112,14 +111,13 @@ Flow.prototype = {
 	redraw: function() {
 		var k = this.p.length;
 		if(k === 0) return;
+		this.s.color(this.c);
+		this.s.tool(this.t);
+		this.s.strokeWidth(this.sw);
 		if(k === 1) {
 			this.s.dot(this.p[0]);
 			return;
 		}
-		this.s.color(this.c);
-		this.s.tool(this.t);
-		this.s.strokeWidth(this.sw);
-		this.s.ctx.beginPath();
 		if(k === 2) {
 			this.line2(this.p[0],this.p[1]);
 		} else if(k >= 3) {
@@ -128,11 +126,6 @@ Flow.prototype = {
 				this.line4(this.p[i],this.p[i+1],this.p[i+2],this.p[i+3]);
 			}
 			this.line3b(this.p[k-3],this.p[k-2],this.p[k-1]);
-		}
-		this.s.ctx.stroke();
-		if(this.tool() != "highlighter") {
-			this.s.dot(this.p[0]);
-			this.s.dot(this.p[k-1]);
 		}
 		var oldc = this.color();
 		//this.color("#F00");
@@ -171,8 +164,10 @@ Flow.prototype = {
 	},
 	//Draw a straight line between pt1 and pt2
 	line2: function(pt1,pt2) {
+		this.s.ctx.beginPath();
 		this.s.moveTo(pt1);
 		this.s.lineTo(pt2);
+		this.s.ctx.stroke();
 	},
 	//Start drawing the Flow between pt1 and pt2 that curves to fit the later pt3
 	line3a: function(pt1,pt2,pt3) {
@@ -186,6 +181,8 @@ Flow.prototype = {
 		bp2 = pt1.add(ln.reflect(v31));
 		this.setMinMax(bp1);
 		this.setMinMax(bp2);
+		//this.s.semicircle(pt1,bp2);
+		this.s.ctx.beginPath();
 		this.s.moveTo(pt1);
 		this.s.bezierCurveTo(bp2,bp1,pt2);
 	},
@@ -202,6 +199,8 @@ Flow.prototype = {
 		this.setMinMax(bp1);
 		this.setMinMax(bp2);
 		this.s.bezierCurveTo(bp1,bp2,pt3);
+		this.s.ctx.stroke();
+		//this.s.semicircle(pt3,bp2);
 	},
 	//Continue drawing the Flow between pt2 and pt3 that curves to fit pt1 and pt4
 	line4: function(pt1,pt2,pt3,pt4) {
@@ -242,3 +241,26 @@ Flow.deserialize = function(data) {
 		strokeWidth: data[3]
 	});
 };
+
+
+function testLines(w,z) {
+	var x,y;
+	for(var i=0;i<20;i++) {
+		x=w;
+		y=z;
+		scratchFlow = newFlow();
+		for(var k=0;k<20;k++) {
+			x += $.rand(-50,50);
+			y += $.rand(-50,50);
+			scratchFlow.point(x,y);
+		}
+		flows.push(scratchFlow);
+		//Flow.deserialize(Flow.serialize(scratchFlow));
+	}
+	var t=new Date().getTime();
+	
+	for(i=0;i<20;i++) {
+		flows[i].redraw();
+	}
+	log((new Date().getTime()-t)/1000);
+}

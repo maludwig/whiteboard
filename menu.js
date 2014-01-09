@@ -1,4 +1,15 @@
-
+var menu = {
+	initialize: function() {
+		$("#undo").click(undo);
+		$("#redo").click(redo);
+	},
+	activate: function(s) {
+		$(s).removeClass("inactive");
+	},
+	deactivate: function(s) {
+		$(s).addClass("inactive");
+	}
+};
 
 
 function setColor(c) {
