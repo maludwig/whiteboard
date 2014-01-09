@@ -33,7 +33,7 @@ function start(x,y) {
 var cc = 0;
 function move(x,y) {
 	cc++;
-	if(cc%10===0) {
+	if(cc%1===0) {
 		scratchFlow.point(x,y);
 	}
 }
@@ -42,19 +42,6 @@ function end(x,y) {
 	addFlow(scratchFlow);
 	scratch.clear();
 	scratchFlow = newFlow();
-}
-function addFlow(newf) {
-	newf.tool(t);
-	newf.surface(modern);
-	if(flows.push(newf)>=20){
-		var f = flows.shift();
-		f.surface(historic);
-		f.redraw();
-	}
-	redrawModern();
-	menu.activate("#undo");
-	menu.deactivate("#redo");
-	redoflows = [];
 }
 function redrawModern() {
 	modern.clear();

@@ -1,31 +1,132 @@
+/*jshint -W117 */
+/*jshint -W098 */
+
 var menu = {
 	initialize: function() {
 		$("#undo").click(undo);
 		$("#redo").click(redo);
+		$.get("palettes.json",function(pals) {
+			var pal;
+			var $pal;
+			var $firstpal;
+			var $firstcolor;
+			for(var palkey in pals) {
+				pal = pals[palkey];
+				$pal = $('<div class="palette" />');
+				$pal.appendTo("#palettes");
+				for(var colorkey in pal) {
+					color = pal[colorkey];
+					$color = $('<div class="palcolor" />');
+					$color.css({background:"#"+color});
+					$color.appendTo($pal);
+					if(color === "1e77b9") {
+						$firstcolor = $color;
+						$firstpal = $pal;
+					}
+				}
+			}
+			$firstcolor.addClass("active");
+			$(".palette").not($firstpal).hide();
+			$(".palette").click(function() {
+				if($(this).parent().hasClass("open")) {
+					var pals = $(".palette").not(this);
+					pals.hide(200);
+					$("#palettes").delay(200).removeClass("open",200);
+				}
+			});
+			$(".palcolor").click(function() {
+				menu.setColor($(this).css("backgroundColor"));
+			});
+			$("#palexpand").click(function(){
+				$("#palettes").addClass("open",200);
+				$(".palette").delay(200).show(200);
+			});
+		},"json");
+		$("#sideexpand").click(function(){
+			$("#sidebar").toggleClass("open",200);
+		});
+		var sizes = [2,4,8,12,20];
+		var $sz;
+		var i;
+		for(var key in sizes) {
+			i = sizes[key];
+			$sz = $('<div class="size"></div>');
+			$sz.css({width:i+"px",height:i+"px",margin:(10-(i/2))+"px"});
+			$("#sizes").append($sz);
+		}
+		sizes = [27,33,40];
+		for(key in sizes) {
+			i = sizes[key];
+			$sz = $('<div class="size extra"></div>');
+			$sz.css({width:i+"px",height:i+"px",margin:(20-(i/2))+"px "+(21-(i/2))+"px"});
+			$sz.hide();
+			$("#sizes").append($sz);
+		}
+		sizes = [120];
+		for(key in sizes) {
+			i = sizes[key];
+			$sz = $('<div class="size extra"></div>');
+			$sz.css({width:i+"px",height:i+"px",margin:(60-(i/2))+"px "+(80-(i/2))+"px"});
+			$sz.hide();
+			$("#sizes").append($sz);
+		}
+		$("#sizes").append('<div style="clear:both"></div>');
+		$(".size").click(function() {
+			$(".size").removeClass("active");
+			$(this).addClass("active");
+			scratch.strokeWidth($(this).width());
+			scratchFlow = newFlow();
+		});
+		$("#sizeexpand").click(function(){
+			$("#sizes .extra").toggle(200);
+			$("#sizes").toggleClass("open");
+		});
+		$("#tools>div").click(function(){
+			menu.setTool($(this).attr("id"));
+		});
+		menu.setTool("pen");
+		menu.setColor("#1e77b9");
 	},
 	activate: function(s) {
 		$(s).removeClass("inactive");
 	},
 	deactivate: function(s) {
 		$(s).addClass("inactive");
-	}
+	},
+	setTool: function(t) {
+		menu.tool = t;
+		scratch.$cv.toggleClass("highlighting",menu.tool=="highlighter");
+		scratch.color(menu.tool=="eraser" ? "#FFF": menu.color);
+		scratchFlow = newFlow();
+		$("#tools>div").css("color","#000");
+		$("#" + menu.tool).css("color",menu.color);
+	},
+	setColor: function(c) {
+		menu.color = c;
+		scratch.color(menu.tool=="eraser" ? "#FFF": menu.color);
+		scratchFlow = newFlow();
+		$(".palcolor").removeClass("active");
+		$(this).addClass("active");
+		$("#" + menu.tool).css("color",menu.color);
+	},
+	tool: "pen",
+	color: "#1e77b9"
 };
-
-
-function setColor(c) {
-	c = typeof c !== 'undefined' ? c : drawColor;
-	drawColor = new Color(c);
-	if(drawMode == "pen") {
-		drawColor.rgba.a = 1;
-	} else if(drawMode == "highlighter") {
-		drawColor.rgba.a = 0.3;
-	} else if(drawMode == "eraser") {
-		drawColor.rgba.a = 1;
+function newFlow() {
+	return new Flow({
+		surface:scratch
+	});
+}
+function addFlow(newf) {
+	newf.surface(modern);
+	newf.tool(menu.tool);
+	if(flows.push(newf)>=20){
+		var f = flows.shift();
+		f.surface(historic);
+		f.redraw();
 	}
-	hctx.strokeStyle = drawColor.toString();
-	hctx.fillStyle = drawColor.toString();
-	pctx.strokeStyle = drawColor.toString();
-	pctx.fillStyle = drawColor.toString();
-	$("#tools,#bgs,#functions").css({color:drawColor.hex});
-	$(".size").css({background:drawColor.hex});
+	redrawModern();
+	menu.activate("#undo");
+	menu.deactivate("#redo");
+	redoflows = [];
 }

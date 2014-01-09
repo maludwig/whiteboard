@@ -9,45 +9,6 @@ var listenTimeout;
 var mDown = false;
 var xhr;
 
-function start(x,y) {
-	pretty = new Pretty();
-	pretty.addPoint(new Point(x,y));
-}
-function move(x,y) {
-	pretty.addPoint(new Point(x,y));
-}
-function end(x,y) {
-	stopListening();
-	pretty.addPoint(new Point(x,y));
-	pretty.endLine();
-	pretties.push(pretty);
-	var thispretty = pretty;
-	if(shorthash) {
-		var o = {action:"line",hash:shorthash,linedata:JSON.stringify(pretty),since:lastLineID};
-		$.post("upload",o,function(data) {
-			thispretty.id = data.id;
-			pctx.fillText("id: " + data.id,thispretty.pts[0].x,thispretty.pts[0].y);
-			drawLines(data);
-			if(listenTimeout) {
-				listenTimeout.reset();
-			}
-		},"json");
-	}
-	undoMark = -1;
-	$("#undo").removeClass("inactive");
-	$("#redo").addClass("inactive");
-}
-
-function log(msg) {
-	msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
-	//$("#log").prepend(msg);
-}
-
-function minilog(msg) {
-	msg = ('<p>' + msg + '</p>').replace(/\n/g,"<br />");
-	$("#log").prepend(msg);
-}
-
 function listen() {
 	minilog("listened");
 	var o = {action:"getlines",hash:shorthash,since:lastLineID};

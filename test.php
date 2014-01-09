@@ -4,7 +4,10 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 	<title>Test Whiteboard</title>
-	<link rel="stylesheet" type="text/css" href="style.css" />
+	<link href="style.css" rel="stylesheet" type="text/css" />
+	<link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet" type='text/css'>
+	<link href='http://fonts.googleapis.com/css?family=Julius+Sans+One' rel='stylesheet' type='text/css'>
+	<link href='http://fonts.googleapis.com/css?family=Varela' rel='stylesheet' type='text/css'>
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
@@ -22,7 +25,7 @@
 	<script>
 		$(function(){
 			hiddensurface = new Surface({drawing:false});
-			scratch = new Surface({canvas:"#scratch",strokeWidth:80,color:"#C42169"});
+			scratch = new Surface({canvas:"#scratch",strokeWidth:80,color:"#1e77b9"});
 			modern = new Surface({canvas:"#modern",strokeWidth:20,color:"#C42169"});
 			historic = new Surface({canvas:"#historic",strokeWidth:20,color:"#1b3df5"});
 			$("#overlay").touchStart(start);
@@ -40,27 +43,6 @@
 		});
 		function log(msg) {
 			$("#log").append("<div>" + msg + "</div>");
-		}
-		function newFlow() {
-			var c;
-			t = $.rand(['highlighter','pen','eraser']);
-			if(t=="highlighter"){
-				scratch.$cv.addClass("highlighting");
-			} else {
-				if(t=="eraser") {
-					c="#FFF";
-				} else {
-					c = $.rand(['#F00','#0F0',"#00F"])
-					//c=$.rcolor(undefined,undefined,"FF");
-				}
-				scratch.$cv.removeClass("highlighting");
-			}
-			return new Flow({
-				surface:scratch,
-				color:c,
-				strokeWidth:$.rand(20,90),
-				tool:'pen'
-			});
 		}
 	</script>
 </head>
