@@ -14,6 +14,7 @@ html, body {
     height: 100%;
 	font-family: 'Varela', sans-serif;
 	overflow:hidden;
+	color:#444;
 }
 
 div {
@@ -254,7 +255,7 @@ h1,h2,h3,h4,h5 {
 	color: inherit;
 }
 
-#functions > .inactive > i,#functions > .inactive:hover > i, #functions > .inactive:hover > p {
+#functions > .inactive > i,#functions > .inactive:hover > i, #functions > .inactive:hover > p, #functions:hover > .inactive > p {
 	color: #8b8b8b;
 }
 

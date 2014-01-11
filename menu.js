@@ -73,6 +73,7 @@ var menu = {
 			$("#sizes").append($sz);
 		}
 		$("#sizes").append('<div style="clear:both"></div>');
+		
 		$(".size").touchStart(function() {
 			$(".size").removeClass("active");
 			$(this).addClass("active");
@@ -162,7 +163,7 @@ var menu = {
 		scratch.$cv.toggleClass("highlighting",menu.tool=="highlighter");
 		scratch.color(menu.tool=="eraser" ? "#FFF": menu.color);
 		scratchFlow = newFlow();
-		$("#tools>div").css("color","#000");
+		$("#tools>div").css("color","inherit");
 		$("#" + menu.tool).css("color",menu.color);
 	},
 	setColor: function(c) {
@@ -171,6 +172,7 @@ var menu = {
 		scratchFlow = newFlow();
 		$(".palcolor").removeClass("active");
 		$("#" + menu.tool).css("color",menu.color);
+		$(".size").css("background",menu.color);
 	},
 	tool: "pen",
 	color: "#1e77b9",
