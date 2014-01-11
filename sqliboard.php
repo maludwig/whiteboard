@@ -41,14 +41,19 @@ class Board {
 		return $this->addRow($client,$code,"undo");
 	}
 	
-	public function getLines($since = "") {
+	public function getLines($client, $since = "") {
+		if(!is_numeric($client)) {
+			throw new Exception("Non-numeric client");
+		}
 		//Using the global $mysqli connection
 		$mysqli = $GLOBALS['mysqli'];
-		$query = "SELECT * FROM `lines` WHERE board=" . $mysqli->real_escape_string($this->id);
+		$query = "SELECT * FROM `lines` WHERE client<>" . $client . " AND board=" . $mysqli->real_escape_string($this->id);
 		if(!empty($since) && is_numeric($since)) {
 			$query .= " AND id > " .  $since;
+			$maxid = intval($since);
+		} else {
+			$maxid = 0;
 		}
-		$maxid = $since;
 		$result = $mysqli->query($query);
 		if (!$result) {
 			throw new Exception($mysqli->error);

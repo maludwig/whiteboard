@@ -104,8 +104,8 @@ var menu = {
 			}
 		});
 		//Functions
-		$("#undo").click(menu.undo);
-		$("#redo").click(menu.redo);
+		$("#undo").touchStart(menu.undo);
+		$("#redo").touchStart(menu.redo);
 		$(window).keydown(function(e){
 			if(e.which==90){
 				menu.undo();

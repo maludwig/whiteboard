@@ -1,4 +1,5 @@
 <?php
+/*
 if(rand(0,200)>198){
 	header('HTTP/1.1 500 Internal Server Error');
 	exit("Do you even lift?");
@@ -7,7 +8,8 @@ if(rand(0,200)>198){
 	header("HTTP/1.0 404 Not Found");
 	exit("Gone to the beach");
 }
-	
+*/
+usleep(rand(0,3000000));
 require_once "sqliboard.php";
 if(noneEmpty('action')) {
 	if($_REQUEST['action'] == "new") {
@@ -25,19 +27,18 @@ if(noneEmpty('action')) {
 					foreach($lines as $key => $line) {
 						$idsp[] = $brd->addRow($client,$line['code'],"flow",json_encode($line['flow']));
 					}
-					reply(end($idsp),$idsp);
+					reply(0);
 				}
 			} else if($_REQUEST['action'] == "clear") {
-				$lastid = 0;
 				reply($brd->clear($client));
 			} else if($_REQUEST['action'] == "undo") {
-				$lastid = 0;
 				if(noneEmpty("code")) {
-					reply($brd->remove($client,$_REQUEST['code']));
+					$brd->remove($client,$_REQUEST['code']);
+					reply();
 				}
 			} else if($_REQUEST['action'] == "getlines") {
 				if(allSet("since")) {
-					$lines = $brd->getLines($_REQUEST['since']);
+					$lines = $brd->getLines($client,$_REQUEST['since']);
 					reply($lines['id'], $lines['jsons']);
 				}
 			}
@@ -47,11 +48,8 @@ if(noneEmpty('action')) {
 	echo "Malformed request";
 }
 
-function reply($since,$data = "") {
-	$out = [];
-	$out['since'] = $since;
-	$out['data'] = $data;
-	echo json_encode($out);
+function reply($since = 0,$data = "") {
+	echo json_encode(["since" => $since, "data" => $data]);
 }
 
 function allSet() {

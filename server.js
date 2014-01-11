@@ -98,7 +98,7 @@ var svr = {
 			};
 			$.extend(defaults, updata);
 			$.post("upload", defaults, function(downdata) {
-				svr.since = downdata.since;
+				svr.since = Math.max(downdata.since,svr.since);
 				if(callback) {
 					callback(downdata.data);
 				}
@@ -145,9 +145,11 @@ var svr = {
 				line.code = num(line.code);
 				line.client = num(line.client);
 				if(line.type == "flow") {
-					newFlow = Flow.deserialize(JSON.parse(line.data));
-					svr.allFlows.push({client:line.client,code:line.code,flow:newFlow});
-					svr.add(newFlow);
+					if(!svr.search(line.client,line.code)){
+						newFlow = Flow.deserialize(JSON.parse(line.data));
+						svr.allFlows.push({client:line.client,code:line.code,flow:newFlow});
+						svr.add(newFlow);
+					}
 				} else if(line.type == "undo") {
 					var src = svr.remove(line.client,line.code);
 					if(src) {
