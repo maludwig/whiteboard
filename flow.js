@@ -38,11 +38,12 @@ function Flow(opt) {
 	}
 	if (typeof opt.surface === "undefined") {
 		opt.surface = new Surface(sopt);
-	} else {
-		if(typeof opt.color != "undefined") {opt.surface.color(opt.color);}
-		if(typeof opt.tool != "undefined") {opt.surface.tool(opt.tool);}
-		if(typeof opt.strokeWidth != "undefined") {opt.surface.strokeWidth(opt.strokeWidth);}
 	}
+	
+	if(typeof opt.color != "undefined") {opt.surface.color(opt.color);}
+	if(typeof opt.tool != "undefined") {opt.surface.tool(opt.tool);}
+	if(typeof opt.strokeWidth != "undefined") {opt.surface.strokeWidth(opt.strokeWidth);}
+	
 	this.s = opt.surface;
 	this.c = this.s.color();
 	this.t = this.s.tool();
@@ -226,20 +227,22 @@ Flow.prototype = {
 };
 
 Flow.serialize = function(flow) {
-	return [
-		Point.serialize(flow.p),
-		Color.serialize(flow.color()),
-		flow.tool(),
-		flow.strokeWidth()
-	];
+	return {
+		p:Point.serialize(flow.p),
+		c:Color.serialize(flow.color().hex),
+		t:flow.tool(),
+		w:flow.strokeWidth()
+	};
 };
 Flow.deserialize = function(data) {
-	return new Flow({
-		points: Point.deserialize(data[0]),
-		color: data[1],
-		tool: data[2],
-		strokeWidth: data[3]
-	});
+	var flowOpt = {
+		points: Point.deserialize(data.p),
+		color: data.c,
+		tool: data.t,
+		strokeWidth: data.w,
+		surface: hiddensurface
+	};
+	return new Flow(flowOpt);
 };
 
 

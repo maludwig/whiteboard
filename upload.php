@@ -1,37 +1,45 @@
 <?php
+if(rand(0,200)>198){
+	header('HTTP/1.1 500 Internal Server Error');
+	exit("Do you even lift?");
+}
+if(rand(0,200)>198){
+	header("HTTP/1.0 404 Not Found");
+	exit("Gone to the beach");
+}
+	
 require_once "sqliboard.php";
 if(noneEmpty('action')) {
 	if($_REQUEST['action'] == "new") {
 		$brd = new Board();
 		reply(0,["hash" => $brd->shorthash,"clientid" => $brd->nextClient()]);
 	} else if(noneEmpty("hash")) {
+		$brd = new Board($_REQUEST['hash']);
 		if($_REQUEST['action'] == "init") {
-			$brd = new Board($_REQUEST['hash']);
 			reply(0,["hash" => $brd->shorthash,"clientid" => $brd->nextClient()]);
-		} else if($_REQUEST['action'] == "lines") {
-			if(noneEmpty("linedata")) {
-				$brd = new Board($_REQUEST['hash']);
-				$lines = json_decode($_REQUEST['linedata'], true);
-				foreach($lines as $key => $line) {
-					$idsp[] = $brd->addLine($line);
+		} else if(noneEmpty("client")){
+			$client = $_REQUEST['client'];
+			if($_REQUEST['action'] == "lines") {
+				if(noneEmpty("linedata")) {
+					$lines = json_decode($_REQUEST['linedata'], true);
+					foreach($lines as $key => $line) {
+						$idsp[] = $brd->addRow($client,$line['code'],"flow",json_encode($line['flow']));
+					}
+					reply(end($idsp),$idsp);
 				}
-				reply(end($idsp),$idsp);
-			}
-		} else if($_REQUEST['action'] == "clear") {
-			$lastid = 0;
-			$brd = new Board($_REQUEST['hash']);
-			reply($brd->clear());
-		} else if($_REQUEST['action'] == "undo") {
-			$lastid = 0;
-			if(noneEmpty("code")) {
-				$brd = new Board($_REQUEST['hash']);
-				reply($brd->remove($_REQUEST['code']));
-			}
-		} else if($_REQUEST['action'] == "getlines") {
-			if(allSet("since")) {
-				$brd = new Board($_REQUEST['hash']);
-				$lines = $brd->getLines($_REQUEST['since']);
-				reply($lines->id, $lines->jsons);
+			} else if($_REQUEST['action'] == "clear") {
+				$lastid = 0;
+				reply($brd->clear($client));
+			} else if($_REQUEST['action'] == "undo") {
+				$lastid = 0;
+				if(noneEmpty("code")) {
+					reply($brd->remove($client,$_REQUEST['code']));
+				}
+			} else if($_REQUEST['action'] == "getlines") {
+				if(allSet("since")) {
+					$lines = $brd->getLines($_REQUEST['since']);
+					reply($lines['id'], $lines['jsons']);
+				}
 			}
 		}
 	}

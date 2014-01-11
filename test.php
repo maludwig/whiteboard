@@ -11,7 +11,7 @@
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
-	<script type="text/javascript" src="js/jquery-me.2.1.js"></script>
+	<script type="text/javascript" src="js/jquery-me.2.2.js"></script>
 	<script type="text/javascript" src="js/color.js"></script>
 	<script type="text/javascript" src="js/hook.js"></script>
 	<script type="text/javascript" src="js/touch.js"></script>
@@ -19,30 +19,67 @@
 	<script type="text/javascript" src="menu.js"></script>
 	<script type="text/javascript" src="surface.js"></script>
 	<script type="text/javascript" src="flow.js"></script>
-	<script type="text/javascript" src="undo.js"></script>
+	<script type="text/javascript" src="flowmgmt.js"></script>
+	<script type="text/javascript" src="server.js"></script>
 	<style>
 	</style>
 	<script>
+		var log;
 		$(function(){
-			hiddensurface = new Surface({drawing:false});
-			scratch = new Surface({canvas:"#scratch",strokeWidth:80,color:"#1e77b9"});
-			modern = new Surface({canvas:"#modern",strokeWidth:20,color:"#C42169"});
-			historic = new Surface({canvas:"#historic",strokeWidth:20,color:"#1b3df5"});
-			$("#overlay").touchStart(start);
-			$("#overlay").touchMove(move);
-			$("#overlay").touchEnd(end);
-			scratchFlow = newFlow();
-			$(window).keyup(function(e){
-				if(e.which==90){
-					undo();
-				} else if(e.which==89) {
-					redo();
-				}
-			});
+			flowMgmt.initialize();
+			flowActions.initialize();
 			menu.initialize();
+			svr.online(function(){
+				log("svr online");
+			});
+			svr.add(function(){
+				log("svr add");
+			});
+			svr.undo(function(){
+				log("svr undo");
+			});
+			svr.clear(function(){
+				log("svr clear");
+			});
+			svr.error(function(msg){
+				log("svr error: " + msg);
+			});
+			svr.statusUpdate(function() {
+				log("svr status: " + svr.status);
+			});
+			
+			svr.initialize("#37");
+			
+			flowActions.add(function(){
+				log("fa add");
+			});
+			flowActions.undo(function(){
+				log("fa undo");
+			});
+			flowActions.redo(function(){
+				log("fa redo");
+			});
+			flowActions.clear(function(){
+				log("fa clear");
+			});
+			
+//			svr.undo(function(f){
+//				
+//				//alert("newflow");
+//				f.p = [];
+//				if(f.s == modern) {
+//					flowMgmt.redrawModern();
+//				} else {
+//					flowMgmt.redrawHistoric();
+//				}
+//			});
+//			svr.clear(function(f){
+//				//alert("newflow");
+//				flowMgmt.clear();
+//			});
 		});
 		function log(msg) {
-			$("#log").append("<div>" + msg + "</div>");
+			$("#log").prepend("<div>" + msg + "</div>");
 		}
 	</script>
 </head>
@@ -67,11 +104,11 @@
 		</div>
 		<hr />
 		<div id="bgs">
-			<h3>0</h3>
-			<h3>1</h3>
-			<h3>2</h3>
-			<h3 class="active">3</h3>
-			<h3>4</h3>
+			<img src="img/bg0icon.png" data-bg="0">
+			<img src="img/bg1icon.png" data-bg="1">
+			<img src="img/bg2icon.png" data-bg="2">
+			<img src="img/bg3icon.png" data-bg="3" class="active">
+			<img src="img/bg4icon.png" data-bg="4">
 		</div>
 		<hr />
 		<div id="functions">

@@ -3,8 +3,11 @@
 
 var menu = {
 	initialize: function() {
-		$("#undo").click(undo);
-		$("#redo").click(redo);
+		//Sidebar expander
+		$("#sideexpand").click(function(){
+			$("#sidebar").toggleClass("open",200);
+		});
+		//Palettes
 		$.get("palettes.json",function(pals) {
 			var pal;
 			var $pal;
@@ -36,16 +39,15 @@ var menu = {
 			});
 			$(".palcolor").click(function() {
 				menu.setColor($(this).css("backgroundColor"));
+				$(this).addClass("active");
 			});
 			$("#palexpand").click(function(){
 				$("#palettes").addClass("open",200);
 				$(".palette").delay(200).show(200);
 			});
 		},"json");
-		$("#sideexpand").click(function(){
-			$("#sidebar").toggleClass("open",200);
-		});
-		var sizes = [2,4,8,12,20];
+		//Sizes
+		var sizes = [1,3,6,10,18];
 		var $sz;
 		var i;
 		for(var key in sizes) {
@@ -77,21 +79,65 @@ var menu = {
 			scratch.strokeWidth($(this).width());
 			scratchFlow = newFlow();
 		});
+		$(".size:first").each(function(){
+			$(this).addClass("active");
+			scratch.strokeWidth($(this).width());
+			scratchFlow = newFlow();
+		});
 		$("#sizeexpand").click(function(){
 			$("#sizes .extra").toggle(200);
 			$("#sizes").toggleClass("open");
 		});
+		//Tools
 		$("#tools>div").click(function(){
 			menu.setTool($(this).attr("id"));
 		});
+		//Grids
+		$("#bgs>img").click(function(){
+			var n = $(this).data("bg");
+			$("#bgs>img").removeClass("active");
+			$(this).addClass("active");
+			if(n===0) {
+				$("#overlay").css({background:"none"});
+			} else {
+				$("#overlay").css({background:"url(img/bg" + n + "a.png)"});
+			}
+		});
+		//Functions
+		$("#undo").click(menu.undo);
+		$("#redo").click(menu.redo);
+		$(window).keydown(function(e){
+			if(e.which==90){
+				menu.undo();
+			} else if(e.which==89) {
+				menu.redo();
+			}
+		});
+		$("#clear").click(function(){
+			flowActions.clear();
+		});
+		//Initialize
 		menu.setTool("pen");
 		menu.setColor("#1e77b9");
+	},
+	undo: function() {
+		if(menu.isActive("#undo")) {
+			flowActions.undo();
+		}
+	},
+	redo: function() {
+		if(menu.isActive("#redo")) {
+			flowActions.redo();
+		}
 	},
 	activate: function(s) {
 		$(s).removeClass("inactive");
 	},
 	deactivate: function(s) {
 		$(s).addClass("inactive");
+	},
+	isActive: function(s) {
+		return !($(s).hasClass("inactive"));
 	},
 	setTool: function(t) {
 		menu.tool = t;
@@ -106,27 +152,11 @@ var menu = {
 		scratch.color(menu.tool=="eraser" ? "#FFF": menu.color);
 		scratchFlow = newFlow();
 		$(".palcolor").removeClass("active");
-		$(this).addClass("active");
 		$("#" + menu.tool).css("color",menu.color);
 	},
 	tool: "pen",
 	color: "#1e77b9"
 };
 function newFlow() {
-	return new Flow({
-		surface:scratch
-	});
-}
-function addFlow(newf) {
-	newf.surface(modern);
-	newf.tool(menu.tool);
-	if(flows.push(newf)>=20){
-		var f = flows.shift();
-		f.surface(historic);
-		f.redraw();
-	}
-	redrawModern();
-	menu.activate("#undo");
-	menu.deactivate("#redo");
-	redoflows = [];
+	return new Flow({surface:scratch});
 }

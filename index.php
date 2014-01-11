@@ -110,11 +110,11 @@
 		</div>
 		<hr />
 		<div id="bgs">
-			<h3>0</h3>
-			<h3>1</h3>
-			<h3>2</h3>
-			<h3 class="active">3</h3>
-			<h3>4</h3>
+			<img src="img/bg0icon.png" data-bg="0">
+			<img src="img/bg1icon.png" data-bg="1">
+			<img src="img/bg2icon.png" data-bg="2">
+			<img src="img/bg3icon.png" data-bg="3" class="active">
+			<img src="img/bg4icon.png" data-bg="4">
 		</div>
 		<hr />
 		<div id="functions">

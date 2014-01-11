@@ -16,28 +16,6 @@ var isFunction = function(obj) {
 };
 
 $(function() {
-	$("#bgs>h3").click(function(){
-		var n = $(this).html();
-		$("#bgs>h3").removeClass("active");
-		$(this).addClass("active");
-		if(n===0) {
-			$("html,body").css({background:"none"});
-		} else {
-			$("html,body").css({background:"url(img/bg" + $(this).html() + ".png)"});
-		}
-	});
-	$("#clear").click(function(){
-		clearDrawing();
-		if(shorthash) {
-			var o = {action:"clear",hash:shorthash};
-			$.post("upload",o,function(data) {
-				lastLineID = data.id;
-			},"json");
-		}
-		undoMark = -1;
-		undoPretties = undefined;
-		$("#undo, #redo").addClass("inactive");
-	});
 	$("#share").click(function(){
 		var o = {action:"board"};
 		$.post("upload",o,function(data) {

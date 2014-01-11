@@ -1,7 +1,7 @@
+function num(value) {
+	return parseInt(value, 10) || 0;
+};
 (function($){
-	var num = function (value) {
-			return parseInt(value, 10) || 0;
-		};
 
 	/**
 	 * Sets or gets the values for min-width, min-height, max-width

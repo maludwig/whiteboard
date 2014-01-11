@@ -9,7 +9,10 @@ class Board {
 	public $line;
 	public $pointCount;
 	
-	public function clear() {
+	public function clear($client) {
+		if(!is_numeric($client)) {
+			throw new Exception("Non-numeric client");
+		}
 		//Using the global $mysqli connection
 		$mysqli = $GLOBALS['mysqli'];
 		$query = "DELETE FROM `lines` WHERE board=" . $mysqli->real_escape_string($this->id);
@@ -17,22 +20,25 @@ class Board {
 		if (!$result) {
 			throw new Exception($mysqli->error);
 		}
-		return $this->addRow("clear",0);
+		return $this->addRow($client,0,"clear");
 	}
 	
-	public function remove($code) {
-		//Using the global $mysqli connection
+	public function remove($client,$code) {
+		if(!is_numeric($client)) {
+			throw new Exception("Non-numeric client");
+		}
 		if(!is_numeric($code)) {
 			throw new Exception("Non-numeric code");
 		}
+		//Using the global $mysqli connection
 		$mysqli = $GLOBALS['mysqli'];
 		$query = "DELETE FROM `lines` WHERE board=" . $mysqli->real_escape_string($this->id);
-		$query .= " AND code=" . $code . ' ORDER BY id DESC LIMIT 1';
+		$query .= " AND client=" . $client . " AND code=" . $code . ' ORDER BY id DESC LIMIT 1';
 		$result = $mysqli->query($query);
 		if (!$result) {
 			throw new Exception($mysqli->error);
 		}
-		return $this->addRow('undo',$code);
+		return $this->addRow($client,$code,"undo");
 	}
 	
 	public function getLines($since = "") {
@@ -40,7 +46,7 @@ class Board {
 		$mysqli = $GLOBALS['mysqli'];
 		$query = "SELECT * FROM `lines` WHERE board=" . $mysqli->real_escape_string($this->id);
 		if(!empty($since) && is_numeric($since)) {
-			$query .= " AND id > " .  $mysqli->real_escape_string($since);
+			$query .= " AND id > " .  $since;
 		}
 		$maxid = $since;
 		$result = $mysqli->query($query);
@@ -50,16 +56,7 @@ class Board {
 		if ($result->num_rows > 0) {
 			while ($row = $result->fetch_assoc()) {
 				$maxid = max($maxid,$row['id']);
-				if($row['json'] == "clear") {
-					$json = ["type" => "clear"];
-				} else if($row['json'] == "undo") {
-					$json = ["type" => "undo"];
-				} else {
-					$json = json_decode($row['json'],true);
-					$json['type'] = 'line';
-				}
-				$json['id'] = $row['id'];
-				$json['code'] = $row['code'];
+				$json = ['type'=>$row['type'], 'data'=>$row['json'], 'client'=>$row['client'], 'code'=>$row['code']];
 				$jsons[] = $json;
 			}
 			return ["id" => $maxid, "jsons" => $jsons];
@@ -68,13 +65,15 @@ class Board {
 		}
 	}
 	
-	public function addLine($line) {
-		return $this->addRow(json_encode($line),$line['code']);
-	}
-	
-	public function addRow($json,$code) {
+	public function addRow($client,$code,$type,$json = "") {
+		if(!is_numeric($client)) {
+			throw new Exception("Non-numeric client");
+		}
+		if(!is_numeric($code)) {
+			throw new Exception("Non-numeric code");
+		}
 		$mysqli = $GLOBALS['mysqli'];
-		$query = "INSERT INTO `lines` (board,code,json) VALUES (" . $mysqli->real_escape_string($this->id) . "," . $mysqli->real_escape_string($code) . ",'" . $mysqli->real_escape_string($json) . "')";
+		$query = "INSERT INTO `lines` (board,client,code,type,json) VALUES (" . $mysqli->real_escape_string($this->id) . "," . $client . "," . $code . ",'" . $mysqli->real_escape_string($type) . "','" . $mysqli->real_escape_string($json) . "')";
 		$result = $mysqli->query($query);
 		if (!$result) {
 			throw new Exception($mysqli->error);
@@ -127,7 +126,6 @@ class Board {
 			}
 			$this->id = $mysqli->insert_id;
 			$this->hash = $hash;
-			$shorthash = str_pad($shorthash,8,"0");
 			$this->shorthash = $shorthash;
 		} else {
 			if(!ctype_xdigit($shorthash)){
@@ -138,7 +136,6 @@ class Board {
 					throw new Exception('Board does not exist');
 				}
 			}
-			$shorthash = str_pad($shorthash,8,"0");
 			$this->shorthash = $shorthash;
 			$this->populate();
 		}
@@ -175,7 +172,6 @@ class Board {
 			throw new Exception("Non-hex id");
 		}
 		$shorthash = str_pad($shorthash,8,"0");
-		$this->shorthash = $shorthash;
 		$query = "SELECT id,HEX(hash) as hash,HEX(shorthash) as sh FROM boards WHERE shorthash=0x" . $shorthash;
 		$result = $mysqli->query($query);
 		if (!$result) {
@@ -192,12 +188,13 @@ class Board {
 	
 	public function nextClient() {
 		$mysqli = $GLOBALS['mysqli'];
-		$query = "UPDATE boards SET clients = MOD(clients + 1, 256) WHERE shorthash=0x" . $this->shorthash;
+		$shorthash = str_pad($this->shorthash,8,"0");
+		$query = "UPDATE boards SET clients = MOD(clients + 1, 256) WHERE shorthash=0x" . $shorthash;
 		$result = $mysqli->query($query);
 		if (!$result) {
 			throw new Exception($mysqli->error);
 		}
-		$query = "SELECT clients FROM boards WHERE shorthash=0x" . $this->shorthash;
+		$query = "SELECT clients FROM boards WHERE shorthash=0x" . $shorthash;
 		$result = $mysqli->query($query);
 		if (!$result) {
 			throw new Exception($mysqli->error);
