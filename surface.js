@@ -74,6 +74,9 @@ function Surface(opt) {
 }
 
 Surface.prototype = {
+	toDataURL: function() {
+		return this.cv.toDataURL("image/png");
+	},
 	draw: function(b) {
 		if(typeof b === "undefined") {
 			return this.drawing;

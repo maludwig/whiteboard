@@ -8,9 +8,9 @@
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
-	<script type="text/javascript" src="js/jquery-me.2.1.js"></script>
-	<script type="text/javascript" src="js/surface.js"></script>
-	<script type="text/javascript" src="js/flow.js"></script>
+	<script type="text/javascript" src="js/jquery-me.2.2.js"></script>
+	<script type="text/javascript" src="surface.js"></script>
+	<script type="text/javascript" src="flow.js"></script>
 	<script type="text/javascript" src="js/color.js"></script>
 	<script type="text/javascript" src="js/hook.js"></script>
 	<script type="text/javascript" src="js/touch.js"></script>
@@ -36,7 +36,7 @@
 					surface:scratch,
 					color:$.rcolor(undefined,undefined,"FF"),
 					strokeWidth:$.rand(1,9),
-					tool:$.rand(['pen','highlighter','eraser'])
+					tool:$.rand(['pen','highlighter'])
 				});
 				for(var k=0;k<20;k++) {
 					x += $.rand(-30,30);

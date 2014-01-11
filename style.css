@@ -143,7 +143,7 @@ h1,h2,h3,h4,h5 {
 	background: white;
 }
 #palettes.open {
-	width: 960px;
+	width: 970px;
 }
 
 #palexpand {
@@ -210,6 +210,9 @@ h1,h2,h3,h4,h5 {
 	z-index: 250;
 }
 
+.size:hover {
+	border: 8px solid #f6a32b;
+}
 .size.active {
 	border: 8px solid #CCF;
 	z-index: 300;
@@ -218,6 +221,9 @@ h1,h2,h3,h4,h5 {
 	float: left;
 	padding: 7px;
 	text-align:center;
+}
+#tools *:hover, #functions *:hover {
+	color:#f6a32b;
 }
 
 #tools i {
@@ -259,7 +265,7 @@ h1,h2,h3,h4,h5 {
 	color: inherit;
 }
 
-#functions > .inactive {
+#functions > .inactive > i,#functions > .inactive:hover > i, #functions > .inactive:hover > p {
 	color: #8b8b8b;
 }
 

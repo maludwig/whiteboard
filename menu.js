@@ -4,7 +4,7 @@
 var menu = {
 	initialize: function() {
 		//Sidebar expander
-		$("#sideexpand").click(function(){
+		$("#sideexpand").touchStart(function(){
 			$("#sidebar").toggleClass("open",200);
 		});
 		//Palettes
@@ -30,18 +30,18 @@ var menu = {
 			}
 			$firstcolor.addClass("active");
 			$(".palette").not($firstpal).hide();
-			$(".palette").click(function() {
+			$(".palette").touchStart(function() {
 				if($(this).parent().hasClass("open")) {
 					var pals = $(".palette").not(this);
 					pals.hide(200);
 					$("#palettes").delay(200).removeClass("open",200);
 				}
 			});
-			$(".palcolor").click(function() {
+			$(".palcolor").touchStart(function() {
 				menu.setColor($(this).css("backgroundColor"));
 				$(this).addClass("active");
 			});
-			$("#palexpand").click(function(){
+			$("#palexpand").touchStart(function(){
 				$("#palettes").addClass("open",200);
 				$(".palette").delay(200).show(200);
 			});
@@ -84,16 +84,16 @@ var menu = {
 			scratch.strokeWidth($(this).width());
 			scratchFlow = newFlow();
 		});
-		$("#sizeexpand").click(function(){
+		$("#sizeexpand").touchStart(function(){
 			$("#sizes .extra").toggle(200);
 			$("#sizes").toggleClass("open");
 		});
 		//Tools
-		$("#tools>div").click(function(){
+		$("#tools>div").touchStart(function(){
 			menu.setTool($(this).attr("id"));
 		});
 		//Grids
-		$("#bgs>img").click(function(){
+		$("#bgs>img").touchStart(function(){
 			var n = $(this).data("bg");
 			$("#bgs>img").removeClass("active");
 			$(this).addClass("active");
@@ -113,15 +113,30 @@ var menu = {
 				menu.redo();
 			}
 		});
-		$("#clear").click(function(){
+		$("#clear").touchStart(function(){
 			flowActions.clear();
 		});
-		$("#share").click(function(){
+		$("#share").touchStart(function(){
 			svr.initialize();
 		});
+		$("#save").touchStart(function() {
+			var pic = flowMgmt.toDataURL();
+			var $img = $('<img />').attr("src",pic).addClass("mini");
+			var $a = $("<a />").attr("href",pic).attr("target","_blank");
+			$a.append($img);
+			$("#minis").prepend($a.clone());
+			var $msg = $("<div><p>Click the image below to open it in a new window. Right-click the image to save.</p><div/>").append($a);
+			menu.popup("Save Image",$msg);
+		});
+		$("#ok").click(function() {
+			$("#popup").hide(200);
+		});
+		$("#popup").center();
+		$("#popup").hide();
 		//Initialize
 		menu.setTool("pen");
 		menu.setColor("#1e77b9");
+		$("*").attr("unselectable","on");
 	},
 	undo: function() {
 		if(menu.isActive("#undo")) {
@@ -158,8 +173,11 @@ var menu = {
 		$("#" + menu.tool).css("color",menu.color);
 	},
 	tool: "pen",
-	color: "#1e77b9"
+	color: "#1e77b9",
+	popup: function (title,msg) {
+		$("#title").html(title);
+		$("#message").html(msg);
+		$("#popup").center();
+		$("#popup").show(400);
+	}
 };
-function newFlow() {
-	return new Flow({surface:scratch});
-}

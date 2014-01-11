@@ -97,6 +97,14 @@ var flowMgmt = {
 			menu.deactivate("#redo");
 		}
 	},
+	toDataURL: function() {
+		for(var i=histoMark+1;i<flows.length;i++){
+			flows[i].surface(historic);
+			flows[i].redraw();
+		}
+		histoMark = flows.length-1;
+		return historic.toDataURL();
+	},
 	add: function(newf) {
 		var nextHistory;
 		if(undoMark!=flows.length) {
@@ -155,4 +163,7 @@ var flowMgmt = {
 		flowActions.clear(flowMgmt.clear);
 	}
 };
-	
+
+function newFlow() {
+	return new Flow({surface:scratch});
+}
