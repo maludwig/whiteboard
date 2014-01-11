@@ -1,6 +1,6 @@
 function num(value) {
 	return parseInt(value, 10) || 0;
-};
+}
 (function($){
 
 	/**
@@ -42,8 +42,22 @@ function num(value) {
 	 * Sets or gets the values for border, margin and padding.
 	 */
 	$.each(['border', 'margin', 'padding'], function (i, name) {
-		$.fn[name] = function (value) {
+		$.fn[name] = function (value,rightx,bottom,left) {
 			if (value) {
+				if(typeof value == "number"){
+					value = {top:value,right:value,bottom:value,left:value};
+					if(typeof rightx == "number"){
+						value.right = rightx;
+						value.left = rightx;
+						if(typeof bottom == "number"){
+							value.bottom = bottom;
+							if(typeof left == "number"){
+								value.left = left;
+							}
+						}
+					}
+					
+				}
 				if (value.top !== undefined) {
 					this.css(name + '-top' + (name === 'border' ? '-width' : ''), value.top);
 				}
@@ -57,12 +71,13 @@ function num(value) {
 					this.css(name + '-right' + (name === 'border' ? '-width' : ''), value.right);
 				}
 				return this;
-			}
-			else {
-				return {top: num(this.css(name + '-top' + (name === 'border' ? '-width' : ''))),
-						bottom: num(this.css(name + '-bottom' + (name === 'border' ? '-width' : ''))),
-						left: num(this.css(name + '-left' + (name === 'border' ? '-width' : ''))),
-						right: num(this.css(name + '-right' + (name === 'border' ? '-width' : '')))};
+			} else {
+				return {
+					top: num(this.css(name + '-top' + (name === 'border' ? '-width' : ''))),
+					bottom: num(this.css(name + '-bottom' + (name === 'border' ? '-width' : ''))),
+					left: num(this.css(name + '-left' + (name === 'border' ? '-width' : ''))),
+					right: num(this.css(name + '-right' + (name === 'border' ? '-width' : '')))
+				};
 			}
 		};
 	});
@@ -76,7 +91,7 @@ function num(value) {
 			vertical: margin.top + border.top + padding.top + margin.bottom + border.bottom + padding.bottom,
 			horizontal: margin.left + border.left + padding.left + margin.right + border.right + padding.right
 		};
-	}
+	};
 
 	$.fn.sizeRatio = function () {
 		var jqObj;
@@ -123,7 +138,7 @@ function num(value) {
 						$.extend(options, opt);
 						var props, height, width, containerIsWider;
 						props = {};
-						childIsWider = (ratio) > ((options.inside.width() - $(this).box().horizontal) / (options.inside.height() - $(this).box().vertical));
+						var childIsWider = (ratio) > ((options.inside.width() - $(this).box().horizontal) / (options.inside.height() - $(this).box().vertical));
 						if (options.vertical) {
 							if (childIsWider) {
 								height = (options.inside.width() - $(this).box().horizontal) / ratio;
@@ -147,17 +162,17 @@ function num(value) {
 							$.extend(props, {width: width + 'px'});
 						}
 						if (options.transition > 0) {
-							if (options.easing != "") {
+							if (options.easing !== "") {
 								$(this).animate(props, options.transition, options.easing, options.callback);
 							}
 						} else {
 							$(this).css(props);
 						}
 					}
-				})
+				});
 			}
-		}
-	}
+		};
+	};
 	
 	/*
 		Makes a random integer number between min (inclusive) and max (exclusive)
@@ -179,7 +194,7 @@ function num(value) {
 				return Math.floor((Math.random() * (max - min)) + min);
 			}
 		}
-	}
+	};
 	/*
 		Makes a string of random characters
 	*/
@@ -194,12 +209,12 @@ function num(value) {
 			sOut += opt.charset.charAt($.rand(opt.charset.length));
 		}
 		return sOut;
-	}
+	};
 	$.rcolor = function(r,g,b) {
 		var hexset = "0123456789ABCDEF";
 		r = typeof r == "undefined" ? $.rstring({length:2,charset:hexset}) : r;
 		g = typeof g == "undefined" ? $.rstring({length:2,charset:hexset}) : g;
 		b = typeof b == "undefined" ? $.rstring({length:2,charset:hexset}) : b;
 		return "#" + r + g + b;
-	}
+	};
 })(jQuery);// JavaScript Document

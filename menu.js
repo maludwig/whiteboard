@@ -47,44 +47,66 @@ var menu = {
 			});
 		},"json");
 		//Sizes
-		var sizes = [1,3,6,10,18];
+		var $szline;
 		var $sz;
 		var i;
+		var margin;
+		var sizes = [1,3,6,10,18];
+		$szline = $("<div/>").appendTo("#sizes");
 		for(var key in sizes) {
 			i = sizes[key];
 			$sz = $('<div class="size"></div>');
-			$sz.css({width:i+"px",height:i+"px",margin:(10-(i/2))+"px"});
-			$("#sizes").append($sz);
+			$sz.css({width:i+"px",height:i+"px"});
+			$szline.append($sz);
 		}
+		$szline.append('<div style="clear:both"></div>');
+		$szline.addClass("sizeline");
 		sizes = [27,33,40];
+		$szline = $("<div/>").appendTo("#sizes");
 		for(key in sizes) {
 			i = sizes[key];
-			$sz = $('<div class="size extra"></div>');
-			$sz.css({width:i+"px",height:i+"px",margin:(20-(i/2))+"px "+(21-(i/2))+"px"});
-			$sz.hide();
-			$("#sizes").append($sz);
+			$sz = $('<div class="size"></div>');
+			margin = 20-(i/2);
+			$sz.css({width:i+"px",height:i+"px"});
+			$sz.data("margin",margin);
+			$szline.append($sz);
 		}
+		$szline.append('<div style="clear:both"></div>');
+		$szline.addClass("sizeline extra");
 		sizes = [120];
+		$szline = $("<div/>").appendTo("#sizes");
 		for(key in sizes) {
 			i = sizes[key];
-			$sz = $('<div class="size extra"></div>');
-			$sz.css({width:i+"px",height:i+"px",margin:(60-(i/2))+"px "+(80-(i/2))+"px"});
-			$sz.hide();
-			$("#sizes").append($sz);
+			$sz = $('<div class="size"></div>');
+			$sz.css({width:i+"px",height:i+"px"});
+			$szline.append($sz);
 		}
-		$("#sizes").append('<div style="clear:both"></div>');
-		
-		$(".size").touchStart(function() {
+		$szline.append('<div style="clear:both"></div>');
+		$szline.addClass("sizeline extra");
+		menu.calcSizeMargins();
+		$(".sizeline.extra").hide();
+		$(".size").wrap('<span class="sizewrap"/>');
+		$(".sizewrap").hover(function(){
+			$(this).find(".size").addClass("hover");
+			menu.setSizeMargins();
+		}, function() {
+			$(this).find(".size").removeClass("hover");
+			menu.setSizeMargins();
+		});
+		$(".sizewrap").touchStart(function() {
 			$(".size").removeClass("active");
-			$(this).addClass("active");
-			scratch.strokeWidth($(this).width());
+			$(this).find(".size").addClass("active");
+			scratch.strokeWidth($(this).find(".size").width());
 			scratchFlow = newFlow();
+			menu.setSizeMargins();
 		});
 		$(".size:first").each(function(){
 			$(this).addClass("active");
 			scratch.strokeWidth($(this).width());
 			scratchFlow = newFlow();
+			menu.setSizeMargins();
 		});
+		menu.setSizeMargins();
 		$("#sizeexpand").touchStart(function(){
 			$("#sizes .extra").toggle(200);
 			$("#sizes").toggleClass("open");
@@ -181,6 +203,39 @@ var menu = {
 		$(".palcolor").removeClass("active");
 		$("#" + menu.tool).css("color",menu.color);
 		$(".size").css("background",menu.color);
+	},
+	calcSizeMargins: function() {
+		var borderw = 8;
+		$(".sizeline").each(function(){
+			var maxh = $(this).find(".size:last").height() + (borderw*2) + 4;
+			var extraw = $(this).width();
+			var count = 0;
+			var bsub;
+			var x,y;
+			$(this).find(".size").each(function(){
+				count++;
+				extraw -= $(this).width();
+			});
+			x = extraw/(2*count);
+			$(this).find(".size").each(function(){
+				bsub = borderw;
+				y = (maxh-$(this).height())/2;
+				$(this).data("mgn",{top:y,right:x,bottom:y,left:x});
+				$(this).data("bdrmgn",{top:y-bsub,right:x-bsub,bottom:y-bsub,left:x-bsub});
+			});
+		});
+	},
+	setSizeMargins: function() {
+		var borderw = 8;
+		var mgn;
+		$(".size").each(function(){
+			if($(this).is(".active, .hover")) {
+				mgn = $(this).data("bdrmgn");
+			} else {
+				mgn = $(this).data("mgn");
+			}
+			$(this).margin(mgn);
+		});
 	},
 	tool: "pen",
 	color: "#1e77b9",
