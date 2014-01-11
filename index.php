@@ -5,13 +5,17 @@
 	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
 	<title>Mitchell's Whiteboard</title>
 	<link href="style.css" rel="stylesheet" type="text/css" />
-	<link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet" type='text/css'>
+	<link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css">
+	<!--[if IE 7]>
+	  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome-ie7.css">
+	<![endif]-->
 	<link href='http://fonts.googleapis.com/css?family=Julius+Sans+One' rel='stylesheet' type='text/css'>
 	<link href='http://fonts.googleapis.com/css?family=Varela' rel='stylesheet' type='text/css'>
 	<script type="text/javascript" src="js/excanvas.js"></script>
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 	<script type="text/javascript" src="js/jquery-me.2.2.js"></script>
+	<script type="text/javascript" src="js/json3.min.js"></script>
 	<script type="text/javascript" src="js/color.js"></script>
 	<script type="text/javascript" src="js/hook.js"></script>
 	<script type="text/javascript" src="js/touch.js"></script>

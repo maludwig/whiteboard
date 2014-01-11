@@ -40,6 +40,7 @@ var svr = {
 	},
 	allFlows: [],
 	initialize: function(hash) {
+		if(svr.status!=ServerStatus.OFFLINE) return;
 		if (hash) {
 			svr.hash = hash.slice(1);
 			svr.initBoard();

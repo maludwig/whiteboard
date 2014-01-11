@@ -118,7 +118,15 @@ var menu = {
 			flowActions.clear();
 		});
 		$("#share").touchStart(function(){
-			svr.initialize();
+			if(svr.status==ServerStatus.OFFLINE) {
+				svr.online(function(){
+					menu.popup("Sharing",'To share your whiteboard, simply send this link to your buddy! <br /><a href="' + location.href + '">' + location.href + "</a>");
+				});
+				svr.initialize();
+			} else {
+				menu.popup("Sharing",'To share your whiteboard, simply send this link to your buddy! <br /><a href="' + location.href + '">' + location.href + "</a>");
+			}
+			
 		});
 		$("#save").touchStart(function() {
 			var pic = flowMgmt.toDataURL();
