@@ -25,16 +25,8 @@
 	<style>
 	</style>
 	<script>
-		var vlog = function (msg) {
-			$("#log").prepend("<div>" + msg + "</div>");
-		};
 		var log = function() {};
 		$(function(){
-			log = vlog;
-			$("#sidebar h3:first").click(function() {
-				log = vlog;
-				$(this).css("color","green");
-			});
 			flowMgmt.initialize();
 			flowActions.initialize();
 			menu.initialize();
@@ -42,42 +34,9 @@
 				svr.uploadFlows(flows);
 				location.hash = svr.hash;
 			});
-			svr.online(function(){
-				log("svr online");
-			});
-			svr.add(function(){
-				log("svr add");
-			});
-			svr.undo(function(){
-				log("svr undo");
-			});
-			svr.clear(function(){
-				log("svr clear");
-			});
-			svr.error(function(msg){
-				log("svr error: " + msg);
-			});
-			svr.statusUpdate(function() {
-				log("svr status: " + svr.status);
-			});
-			
 			if(location.hash) {
 				svr.initialize(location.hash);
 			}
-			
-			flowActions.add(function(){
-				log("fa add");
-			});
-			flowActions.undo(function(){
-				log("fa undo");
-			});
-			flowActions.redo(function(){
-				log("fa redo");
-			});
-			flowActions.clear(function(){
-				log("fa clear");
-			});
-			
 		});
 	</script>
 </head>
