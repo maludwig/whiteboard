@@ -73,7 +73,7 @@ var menu = {
 			$("#sizes").append($sz);
 		}
 		$("#sizes").append('<div style="clear:both"></div>');
-		$(".size").click(function() {
+		$(".size").touchStart(function() {
 			$(".size").removeClass("active");
 			$(this).addClass("active");
 			scratch.strokeWidth($(this).width());
@@ -115,6 +115,9 @@ var menu = {
 		});
 		$("#clear").click(function(){
 			flowActions.clear();
+		});
+		$("#share").click(function(){
+			svr.initialize();
 		});
 		//Initialize
 		menu.setTool("pen");

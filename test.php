@@ -24,11 +24,23 @@
 	<style>
 	</style>
 	<script>
-		var log;
+		var vlog = function (msg) {
+			$("#log").prepend("<div>" + msg + "</div>");
+		};
+		var log = function() {};
 		$(function(){
+			log = vlog;
+			$("#sidebar h3:first").click(function() {
+				log = vlog;
+				$(this).css("color","green");
+			});
 			flowMgmt.initialize();
 			flowActions.initialize();
 			menu.initialize();
+			svr.online(function() {
+				svr.uploadFlows(flows);
+				location.hash = svr.hash;
+			});
 			svr.online(function(){
 				log("svr online");
 			});
@@ -48,7 +60,9 @@
 				log("svr status: " + svr.status);
 			});
 			
-			svr.initialize("#37");
+			if(location.hash) {
+				svr.initialize(location.hash);
+			}
 			
 			flowActions.add(function(){
 				log("fa add");
@@ -63,24 +77,7 @@
 				log("fa clear");
 			});
 			
-//			svr.undo(function(f){
-//				
-//				//alert("newflow");
-//				f.p = [];
-//				if(f.s == modern) {
-//					flowMgmt.redrawModern();
-//				} else {
-//					flowMgmt.redrawHistoric();
-//				}
-//			});
-//			svr.clear(function(f){
-//				//alert("newflow");
-//				flowMgmt.clear();
-//			});
 		});
-		function log(msg) {
-			$("#log").prepend("<div>" + msg + "</div>");
-		}
 	</script>
 </head>
 
@@ -98,9 +95,9 @@
 		</div>
 		<hr />
 		<div id="tools">
-			<div id="pen" class="active"><i class="icon-pencil"></i></div>
-			<div id="highlighter"><i class="icon-sun"></i></div>
-			<div id="eraser"><i class="icon-eraser"></i></div>
+			<div id="pen" class="active"><i class="icon-pencil"></i><p>Pen</p></div>
+			<div id="highlighter"><i class="icon-sun"></i><p>Highlighter</p></div>
+			<div id="eraser"><i class="icon-eraser"></i><p>Eraser</p></div>
 		</div>
 		<hr />
 		<div id="bgs">
@@ -112,16 +109,11 @@
 		</div>
 		<hr />
 		<div id="functions">
-			<div class="funcline">
-				<div id="clear">&#59191;<p>Clear</p></div>
-				<div id="share">&#59196;<p>Share</p></div>
-				<div id="save">&#128190;<p>Save</p></div>
-			</div>
-			<div class="funcline">
-				<div id="undo" class="inactive">&#59154;<p>Undo</p></div>
-				<div id="redo" class="inactive">&#10150;<p>Redo</p></div>
-				<div id="dorp">&#10150;<p>ECS</p></div>
-			</div>
+				<div id="clear"><i class="icon-star-empty"></i><p>Clear</p></div>
+				<div id="share"><i class="icon-cloud"></i><p>Share</p></div>
+				<div id="save"><i class="icon-save"></i><p>Save</p></div>
+				<div id="undo" class="inactive"><i class="icon-mail-reply"></i><p>Undo</p></div>
+				<div id="redo" class="inactive"><i class="icon-mail-forward"></i><p>Redo</p></div>
 		</div>
 		<hr />
 		<div id="minis"></div>

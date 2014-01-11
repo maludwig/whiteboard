@@ -17,9 +17,7 @@ var flowActions = {
 	redo: new Hook(),
 	clear: new Hook(),
 	initialize: function() {
-		$("#overlay").touchStart(flowActions.start);
-		$("#overlay").touchMove(flowActions.move);
-		$("#overlay").touchEnd(flowActions.end);
+		$("#overlay").touchStart(flowActions.start).touchMove(flowActions.move).touchEnd(flowActions.end);
 	},
 	start: function(x,y) {
 		scratchFlow.point(x,y);

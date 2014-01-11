@@ -214,78 +214,52 @@ h1,h2,h3,h4,h5 {
 	border: 8px solid #CCF;
 	z-index: 300;
 }
-#tools > div {
+#tools div {
 	float: left;
-	padding: 10px;
-	font-size: 40px;
-	color: #000000;
+	padding: 7px;
+	text-align:center;
 }
 
-#tools > div.active {
+#tools i {
+	font-size:40px;
+}
+
+#tools p {
+	font-size: 12px;
+	margin: 0;
+	padding: 0;
+	color: #fff;
+}
+
+#tools:hover p {
 	color: inherit;
 }
 
-#functions {
-	position:relative;
-	height: 140px;
+#functions div {
+	float: left;
+	padding: 3px;
 }
 
-.funcline {
-	position:relative;
-	overflow: hidden;
-	height: 80px;
+#functions i {
+	font-size: 28px;
 }
 
-.funcline > div {
-	position: absolute;
-	padding: 0;
+#functions p {
+	font-size: 12px;
 	margin: 0;
-	top: -40px;
-	font-size: 40px;
-	font-family: 'entypo';
-	font-size: 76px;
-	color: #000000;
-}
-
-.funcline > div > p {
-	position: absolute;
-	top:80px;
-	width: 100%;
-	font-size: 14px;
-	font-family: 'Varela', sans-serif;
 	padding: 0;
-	margin: 0;
+	color: #fff;
 }
 
-.funcline > div.active {
+#functions:hover p {
 	color: inherit;
 }
 
-.funcline > #clear {
-	left: 5px;
+#functions .active {
+	color: inherit;
 }
 
-.funcline > #share {
-	left: 70px;
-}
-
-.funcline > #save {
-	left: 130px;
-}
-
-.funcline > #undo {
-	left: 5px;
-}
-
-.funcline > #redo {
-	left: 70px;
-}
-
-.funcline > #dorp {
-	left: 130px;
-}
-
-.funcline > #redo.inactive, .funcline > #undo.inactive {
+#functions > .inactive {
 	color: #8b8b8b;
 }
 

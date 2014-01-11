@@ -9,7 +9,7 @@ if(rand(0,200)>198){
 	exit("Gone to the beach");
 }
 */
-usleep(rand(0,3000000));
+//usleep(rand(0,3000000));
 require_once "sqliboard.php";
 if(noneEmpty('action')) {
 	if($_REQUEST['action'] == "new") {

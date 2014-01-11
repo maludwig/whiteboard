@@ -139,6 +139,7 @@ var svr = {
 	getLines: function () {
 		var newFlow;
 		var line;
+		var first = svr.since === 0;
 		svr.post("getlines",{},function(lines){
 			for(var idx in lines) {
 				line = lines[idx];
@@ -156,8 +157,10 @@ var svr = {
 						svr.undo(src.flow);
 					}
 				} else if(line.type == "clear") {
-					svr.allFlows = [];
-					svr.clear();
+					if(!first) {
+						svr.allFlows = [];
+						svr.clear();
+					}
 				}
 			}
 		});
