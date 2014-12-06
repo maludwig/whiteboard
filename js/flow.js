@@ -128,8 +128,6 @@ Flow.prototype = {
                 this.line3b(this.p[k-3],this.p[k-2],this.p[k-1]);
             }
             this.s.ctx.stroke();
-			this.s.dot(this.p[0]);
-			this.s.dot(this.p[k-1]);
         }
 	},
 	dots: function() {
