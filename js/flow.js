@@ -85,7 +85,7 @@ Flow.prototype = {
         //Limit the mousemove event rate in order to produce smoother lines, but still allow for precise movements.
         var time = new Date().getTime();
         var inter = time - this.lasttime;
-        if(inter < 10) return;
+        if(inter < 30) return;
         
         this.p.push(pt);
         this.setMinMax(pt);
