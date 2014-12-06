@@ -167,6 +167,7 @@ Surface.prototype = {
 	//Resize canvas to w pixels wide by h pixels high
 	resize: function(w, h){
 		var temp_cnvs = document.createElement('canvas');
+        var prevCap = this.ctx.lineCap;
         if (!temp_cnvs.getContext){
             G_vmlCanvasManager.initElement(temp_cnvs);
         }
@@ -182,5 +183,6 @@ Surface.prototype = {
             height: h + "px"
         });
 		this.ctx.drawImage(temp_cnvs, 0, 0);
+		this.ctx.lineCap = prevCap;
 	}
 };

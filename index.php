@@ -11,7 +11,9 @@
 	<![endif]-->
 	<link href='http://fonts.googleapis.com/css?family=Julius+Sans+One' rel='stylesheet' type='text/css'>
 	<link href='http://fonts.googleapis.com/css?family=Varela' rel='stylesheet' type='text/css'>
-	<script type="text/javascript" src="lib/excanvas.js"></script>
+	<!--[if IE 8]>
+        <script type="text/javascript" src="lib/excanvas.js"></script>
+    <![endif]-->
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 	<script type="text/javascript" src="lib/jquery-me.2.2.js"></script>
@@ -40,6 +42,7 @@
 			svr.online(function() {
 				svr.uploadFlows(flows);
 				location.hash = svr.hash;
+                lasthash = location.hash;
 			});
             setInterval( function() {
                 if(location.hash !== lasthash) {
