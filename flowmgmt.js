@@ -153,9 +153,9 @@ var flowMgmt = {
 	},
 	initialize: function() {
 		hiddensurface = new Surface({drawing:false});
-		historic = new Surface("#historic");
-		modern = new Surface("#modern");
-		scratch = new Surface("#scratch");
+        scratch = new Surface({canvas:"#scratch"});
+        modern = new Surface({canvas:"#modern"});
+        historic = new Surface({canvas:"#historic"});
 		scratchFlow = new Flow({surface:scratch});
 		flowActions.add(flowMgmt.add);
 		flowActions.undo(flowMgmt.undo);
