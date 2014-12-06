@@ -97,13 +97,13 @@ var menu = {
 			$(".size").removeClass("active");
 			$(this).find(".size").addClass("active");
 			scratch.strokeWidth($(this).find(".size").width());
-			scratchFlow = newFlow();
+			scratchFlow = new Flow({surface:scratch});
 			menu.setSizeMargins();
 		});
 		$(".size:first").each(function(){
 			$(this).addClass("active");
 			scratch.strokeWidth($(this).width());
-			scratchFlow = newFlow();
+			scratchFlow = new Flow({surface:scratch});
 			menu.setSizeMargins();
 		});
 		menu.setSizeMargins();
@@ -162,7 +162,6 @@ var menu = {
 		$("#ok").click(function() {
 			$("#popup").hide(200);
 		});
-		$("#popup").center();
 		$("#popup").hide();
 		//Initialize
 		menu.setTool("pen");
@@ -192,14 +191,14 @@ var menu = {
 		menu.tool = t;
 		scratch.$cv.toggleClass("highlighting",menu.tool=="highlighter");
 		scratch.color(menu.tool=="eraser" ? "#FFF": menu.color);
-		scratchFlow = newFlow();
+		scratchFlow = new Flow({surface:scratch});
 		$("#tools>div").css("color","inherit");
 		$("#" + menu.tool).css("color",menu.color);
 	},
 	setColor: function(c) {
 		menu.color = c;
 		scratch.color(menu.tool=="eraser" ? "#FFF": menu.color);
-		scratchFlow = newFlow();
+		scratchFlow = new Flow({surface:scratch});
 		$(".palcolor").removeClass("active");
 		$("#" + menu.tool).css("color",menu.color);
 		$(".size").css("background",menu.color);
@@ -242,7 +241,7 @@ var menu = {
 	popup: function (title,msg) {
 		$("#title").html(title);
 		$("#message").html(msg);
-		$("#popup").center();
+		$("#popup").center({vertical:false});
 		$("#popup").show(400);
 	}
 };

@@ -33,11 +33,19 @@ h1,h2,h3,h4,h5 {
 }
 
 #popup {
+	position:absolute;
+	top: 50px;
 	width:70%;
 	background: white;
 	z-index: 500;
 	padding: 1em;
 	border: 1px solid #ccc;
+	height: 60%;
+}
+
+#popup .mini {
+	width: 40%;
+	outline: 1px solid black;
 }
 
 #message {
@@ -95,9 +103,23 @@ h1,h2,h3,h4,h5 {
 #sidebar p {
 	text-align: center;
 }
-
 #sidebar hr {
-	clear:both;
+    clear:both;
+    margin: 0.1em 0 0.3em;
+}
+
+@media screen and (min-height: 900px) {
+	#sidebar hr {
+		clear:both;
+		margin: 0.2em 0 0.3em;
+	}
+}
+
+@media screen and (max-height: 900px) {
+	#sidebar hr {
+		clear:both;
+		margin: 0.1em 0 0.3em;
+	}
 }
 
 #sideexpand {
@@ -282,10 +304,6 @@ h1,h2,h3,h4,h5 {
 .mini {
 	width: 180px;
     height: auto;
-}
-
-#popup .mini {
-	width: 70%;
 }
 
 #log {

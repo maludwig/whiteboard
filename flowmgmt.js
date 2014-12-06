@@ -32,7 +32,7 @@ var flowActions = {
 		scratchFlow.point(x,y);
 		flowActions.add(scratchFlow);
 		scratch.clear();
-		scratchFlow = newFlow();
+		scratchFlow = new Flow({surface:scratch});
 	}
 };
 
@@ -153,17 +153,13 @@ var flowMgmt = {
 	},
 	initialize: function() {
 		hiddensurface = new Surface({drawing:false});
-		scratch = new Surface({canvas:"#scratch"});
-		modern = new Surface({canvas:"#modern"});
-		historic = new Surface({canvas:"#historic"});
-		scratchFlow = newFlow();
+		historic = new Surface("#historic");
+		modern = new Surface("#modern");
+		scratch = new Surface("#scratch");
+		scratchFlow = new Flow({surface:scratch});
 		flowActions.add(flowMgmt.add);
 		flowActions.undo(flowMgmt.undo);
 		flowActions.redo(flowMgmt.redo);
 		flowActions.clear(flowMgmt.clear);
 	}
 };
-
-function newFlow() {
-	return new Flow({surface:scratch});
-}

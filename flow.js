@@ -49,6 +49,7 @@ function Flow(opt) {
 	this.t = this.s.tool();
 	this.sw = this.s.strokeWidth();
 	this.redraw();
+    this.lasttime = new Date().getTime();
 }
 
 Flow.prototype = {
@@ -63,7 +64,7 @@ Flow.prototype = {
 		}
 	},
 	start: function(pt,y) {
-		pt = typeof y == "number" ?	pt = new Point(pt,y) : pt;
+		pt = new Point(pt,y);
 		this.p = [pt];
 		this.minx = pt.x;
 		this.miny = pt.y;
@@ -73,32 +74,37 @@ Flow.prototype = {
 		this.redraw();
 	},
 	point: function(pt,y) {
-		pt = typeof y == "number" ?	pt = new Point(pt,y) : pt;
+		pt = new Point(pt,y);
 		if(this.p.length === 0) {
 			this.start(pt);
 		}
 		if(pt.x == this.p[this.p.length-1].x && pt.y == this.p[this.p.length-1].y) {
 			return;
 		}
+        
+        //Limit the mousemove event rate in order to produce smoother lines, but still allow for precise movements.
+        var time = new Date().getTime();
+        var inter = time - this.lasttime;
+        if(inter < 10) return;
+        
 		var v = new Vector(this.p[this.p.length-1],pt);
 		var mag = v.mag();
 		this.magsum += mag;
-		if(this.magsum > 30 || mag < 10 || this.p.length < 40) {
-			this.p.push(pt);
-			var k = this.p.length;
-			this.setMinMax(pt);
-			this.magsum = 0;
-			if (this.p.length == 3) {
-				this.s.ctx.beginPath();
-				this.line3a(this.p[0],this.p[1],this.p[2]);
-				this.s.ctx.stroke();
-			} else if (this.p.length > 3) {
-				this.s.ctx.beginPath();
-				this.s.moveTo(this.p[this.p.length-3]);
-				this.line4(this.p[this.p.length-4],this.p[this.p.length-3],this.p[this.p.length-2],this.p[this.p.length-1]);
-				this.s.ctx.stroke();
-			}
-		}
+        //log("<p>" + vel + "</p>");
+        this.p.push(pt);
+        this.setMinMax(pt);
+        this.magsum = 0;
+        
+        
+        this.s.ctx.beginPath();
+        if (this.p.length == 3) {
+            this.line3a(this.p[0],this.p[1],this.p[2]);
+        } else if (this.p.length > 3) {
+            this.s.moveTo(this.p[this.p.length-3]);
+            this.line4(this.p[this.p.length-4],this.p[this.p.length-3],this.p[this.p.length-2],this.p[this.p.length-1]);
+        }
+        this.s.ctx.stroke();
+        this.lasttime = time;
 	},
 	points: function(pts) {
 		for(var i=0;i<pts.length;i++) {
@@ -117,21 +123,19 @@ Flow.prototype = {
 		this.s.strokeWidth(this.sw);
 		if(k === 1) {
 			this.s.dot(this.p[0]);
-			return;
-		}
-		if(k === 2) {
-			this.line2(this.p[0],this.p[1]);
-		} else if(k >= 3) {
-			this.line3a(this.p[0],this.p[1],this.p[2]);
-			for(var i=0;i<k-3;i++) {
-				this.line4(this.p[i],this.p[i+1],this.p[i+2],this.p[i+3]);
-			}
-			this.line3b(this.p[k-3],this.p[k-2],this.p[k-1]);
-		}
-		var oldc = this.color();
-		//this.color("#F00");
-		//this.dots();
-		//this.color(oldc);
+		} else {
+            this.s.ctx.beginPath();
+            if(k === 2) {
+                this.line2(this.p[0],this.p[1]);
+            } else if(k >= 3) {
+                this.line3a(this.p[0],this.p[1],this.p[2]);
+                for(var i=0;i<k-3;i++) {
+                    this.line4(this.p[i],this.p[i+1],this.p[i+2],this.p[i+3]);
+                }
+                this.line3b(this.p[k-3],this.p[k-2],this.p[k-1]);
+            }
+            this.s.ctx.stroke();
+        }
 	},
 	dots: function() {
 		var k = this.p.length;
@@ -165,10 +169,8 @@ Flow.prototype = {
 	},
 	//Draw a straight line between pt1 and pt2
 	line2: function(pt1,pt2) {
-		this.s.ctx.beginPath();
 		this.s.moveTo(pt1);
 		this.s.lineTo(pt2);
-		this.s.ctx.stroke();
 	},
 	//Start drawing the Flow between pt1 and pt2 that curves to fit the later pt3
 	line3a: function(pt1,pt2,pt3) {
@@ -182,8 +184,6 @@ Flow.prototype = {
 		bp2 = pt1.add(ln.reflect(v31));
 		this.setMinMax(bp1);
 		this.setMinMax(bp2);
-		//this.s.semicircle(pt1,bp2);
-		this.s.ctx.beginPath();
 		this.s.moveTo(pt1);
 		this.s.bezierCurveTo(bp2,bp1,pt2);
 	},
@@ -200,8 +200,6 @@ Flow.prototype = {
 		this.setMinMax(bp1);
 		this.setMinMax(bp2);
 		this.s.bezierCurveTo(bp1,bp2,pt3);
-		this.s.ctx.stroke();
-		//this.s.semicircle(pt3,bp2);
 	},
 	//Continue drawing the Flow between pt2 and pt3 that curves to fit pt1 and pt4
 	line4: function(pt1,pt2,pt3,pt4) {
@@ -251,7 +249,7 @@ function testLines(w,z) {
 	for(var i=0;i<20;i++) {
 		x=w;
 		y=z;
-		scratchFlow = newFlow();
+		scratchFlow = new Flow({surface:scratch});
 		for(var k=0;k<20;k++) {
 			x += $.rand(-50,50);
 			y += $.rand(-50,50);

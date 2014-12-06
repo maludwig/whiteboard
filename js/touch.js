@@ -5,14 +5,12 @@
 var mDown = false;
 
 (function($){
-	$(document).bind('touchmove', false);
 	$(document).mousedown(function(e) {
 		mDown = true;
 	});
 	$(document).mouseup(function(e) {
 		mDown = false;
 	});
-	$(document).bind('touchmove', false);
 	$.fn.touchStart = function(f){
 		return this.each(function() {
 			var h = $(this).data("touchstarthook");

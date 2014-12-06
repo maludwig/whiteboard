@@ -157,5 +157,16 @@ Surface.prototype = {
 			this.ctx.arc(pt1.x-this.ox,pt1.y-this.oy,this.strokeWidth()/2,(-0.5*Math.PI)+deg,(0.5*Math.PI)+deg);
 			this.ctx.fill();
 		}
+	},
+	//Resize canvas to w pixels wide by h pixels high
+	resize: function(w, h){
+		var temp_cnvs = document.createElement('canvas');
+		var temp_cntx = temp_cnvs.getContext('2d');
+		temp_cnvs.width = w; 
+		temp_cnvs.height = h;
+		temp_cntx.drawImage(this.cv, 0, 0);
+		this.cv.width = w; 
+		this.cv.height = h;
+		this.ctx.drawImage(temp_cnvs, 0, 0);
 	}
 };

@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+	<meta name="viewport" content="width=900, initial-scale=0.75">
 	<title>Mitchell's Whiteboard</title>
 	<link href="style.css" rel="stylesheet" type="text/css" />
 	<link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css">
@@ -19,7 +19,7 @@
 	<script type="text/javascript" src="js/color.js"></script>
 	<script type="text/javascript" src="js/hook.js"></script>
 	<script type="text/javascript" src="js/touch.js"></script>
-	<script type="text/javascript" src="js/linearalgebra-1.2.js"></script>
+	<script type="text/javascript" src="js/linearalgebra-1.3.js"></script>
 	<script type="text/javascript" src="js/jquery-center.1.2.js"></script>
 	<script type="text/javascript" src="menu.js"></script>
 	<script type="text/javascript" src="surface.js"></script>
@@ -29,7 +29,9 @@
 	<style>
 	</style>
 	<script>
-		var log = function() {};
+		function log(x) {
+            //$("#log").prepend(x)
+        };
 		$(function(){
 			flowMgmt.initialize();
 			flowActions.initialize();
@@ -44,12 +46,9 @@
 		});
 	</script>
 </head>
-
 <body>
 	<div id="sidebar" class="open">
 		<div id="sideexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
-		<h3>Whiteboard</h3>
-		<hr />
 		<div id="palettes">
 			<div id="palexpand"><i class="icon-angle-right"></i><i class="icon-angle-left"></i></div>
 		</div>
