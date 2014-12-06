@@ -54,6 +54,8 @@ var flowMgmt = {
             scratch.resize(d,d);
             modern.resize(d,d);
             historic.resize(d,d);
+            flowMgmt.redrawHistoric();
+            flowMgmt.redrawModern();
         });
 	},
     getMaxDimension: function() {
