@@ -87,15 +87,8 @@ Flow.prototype = {
         var inter = time - this.lasttime;
         if(inter < 10) return;
         
-		var v = new Vector(this.p[this.p.length-1],pt);
-		var mag = v.mag();
-		this.magsum += mag;
-        //log("<p>" + vel + "</p>");
         this.p.push(pt);
         this.setMinMax(pt);
-        this.magsum = 0;
-        
-        
         this.s.ctx.beginPath();
         if (this.p.length == 3) {
             this.line3a(this.p[0],this.p[1],this.p[2]);

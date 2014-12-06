@@ -29,6 +29,7 @@
 	<style>
 	</style>
 	<script>
+        var lasthash = "";
 		function log(x) {
             //$("#log").prepend(x)
         };
@@ -40,9 +41,13 @@
 				svr.uploadFlows(flows);
 				location.hash = svr.hash;
 			});
-			if(location.hash) {
-				svr.initialize(location.hash);
-			}
+            setInterval( function() {
+                if(location.hash !== lasthash) {
+                    flowMgmt.clear();
+                    svr.initialize(location.hash);
+                    lasthash = location.hash;
+                }
+            },500);
 		});
 	</script>
 </head>

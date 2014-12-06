@@ -75,7 +75,12 @@ function Surface(opt) {
 
 Surface.prototype = {
 	toDataURL: function() {
-		return this.cv.toDataURL("image/png");
+        if(this.cv.toDataURL) {
+            return this.cv.toDataURL("image/png");
+        } else {
+            alert("This function is not supported in your browser");
+            return false;
+        }
 	},
 	draw: function(b) {
 		if(typeof b === "undefined") {

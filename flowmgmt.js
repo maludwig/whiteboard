@@ -23,10 +23,7 @@ var flowActions = {
 		scratchFlow.point(x,y);
 	},
 	move: function(x,y) {
-		cc++;
-		if(cc%1===0) {
-			scratchFlow.point(x,y);
-		}
+        scratchFlow.point(x,y);
 	},
 	end: function(x,y) {
 		scratchFlow.point(x,y);
@@ -37,6 +34,19 @@ var flowActions = {
 };
 
 var flowMgmt = {
+	initialize: function() {
+		hiddensurface = new Surface({drawing:false});
+        scratch = new Surface({canvas:"#scratch"});
+        modern = new Surface({canvas:"#modern"});
+        historic = new Surface({canvas:"#historic"});
+		scratchFlow = new Flow({surface:scratch});
+        
+        //Any calls to flowActions.add/undo/redo/clear will also call flowMgmt's respective function.
+		flowActions.add(flowMgmt.add);
+		flowActions.undo(flowMgmt.undo);
+		flowActions.redo(flowMgmt.redo);
+		flowActions.clear(flowMgmt.clear);
+	},
 	getLastUndo: function() {
 		return flows[undoMark];
 	},
@@ -150,16 +160,5 @@ var flowMgmt = {
 		scratch.clear();
 		modern.clear();
 		historic.clear();
-	},
-	initialize: function() {
-		hiddensurface = new Surface({drawing:false});
-        scratch = new Surface({canvas:"#scratch"});
-        modern = new Surface({canvas:"#modern"});
-        historic = new Surface({canvas:"#historic"});
-		scratchFlow = new Flow({surface:scratch});
-		flowActions.add(flowMgmt.add);
-		flowActions.undo(flowMgmt.undo);
-		flowActions.redo(flowMgmt.redo);
-		flowActions.clear(flowMgmt.clear);
 	}
 };

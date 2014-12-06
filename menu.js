@@ -59,6 +59,11 @@ var menu = {
 			$sz.css({width:i+"px",height:i+"px"});
 			$szline.append($sz);
 		}
+        //Initial size of 18px
+        $sz.addClass("active");
+        scratch.strokeWidth($sz.width());
+        scratchFlow = new Flow({surface:scratch});
+        
 		$szline.append('<div style="clear:both"></div>');
 		$szline.addClass("sizeline");
 		sizes = [27,33,40];
@@ -97,12 +102,6 @@ var menu = {
 			$(".size").removeClass("active");
 			$(this).find(".size").addClass("active");
 			scratch.strokeWidth($(this).find(".size").width());
-			scratchFlow = new Flow({surface:scratch});
-			menu.setSizeMargins();
-		});
-		$(".size:first").each(function(){
-			$(this).addClass("active");
-			scratch.strokeWidth($(this).width());
 			scratchFlow = new Flow({surface:scratch});
 			menu.setSizeMargins();
 		});
@@ -152,12 +151,14 @@ var menu = {
 		});
 		$("#save").touchStart(function() {
 			var pic = flowMgmt.toDataURL();
-			var $img = $('<img />').attr("src",pic).addClass("mini");
-			var $a = $("<a />").attr("href",pic).attr("target","_blank");
-			$a.append($img);
-			$("#minis").prepend($a.clone());
-			var $msg = $("<div><p>Click the image below to open it in a new window. Right-click the image to save.</p><div/>").append($a);
-			menu.popup("Save Image",$msg);
+            if(pic){
+                var $img = $('<img />').attr("src",pic).addClass("mini");
+                var $a = $("<a />").attr("href",pic).attr("target","_blank");
+                $a.append($img);
+                $("#minis").prepend($a.clone());
+                var $msg = $("<div><p>Click the image below to open it in a new window. Right-click the image to save.</p><div/>").append($a);
+                menu.popup("Save Image",$msg);
+            }
 		});
 		$("#ok").click(function() {
 			$("#popup").hide(200);
