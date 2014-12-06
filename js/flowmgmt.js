@@ -35,9 +35,7 @@ var flowActions = {
 
 var flowMgmt = {
 	initialize: function() {
-        var d = Math.max(screen.width, screen.height,$("#overlay").outerHeight(),$("#overlay").outerWidth()) + 200;
-        if(window.innerWidth) d = Math.max(d,window.innerWidth);
-        if(window.innerHeight) d = Math.max(d,window.innerHeight);
+        var d = flowMgmt.getMaxDimension();
 		hiddensurface = new Surface({drawing:false,w:d,h:d});
         scratch = new Surface({canvas:"#scratch",w:d,h:d});
         modern = new Surface({canvas:"#modern",w:d,h:d});
@@ -51,13 +49,19 @@ var flowMgmt = {
 		flowActions.clear(flowMgmt.clear);
         
         $(window).resize(function(){
-            var d = Math.max(screen.width, window.innerWidth, screen.height, window.innerHeight,$("#overlay").outerHeight(),$("#overlay").outerWidth()) + 200;
+            var d = flowMgmt.getMaxDimension();
             hiddensurface.resize(d,d);
             scratch.resize(d,d);
             modern.resize(d,d);
             historic.resize(d,d);
         });
 	},
+    getMaxDimension: function() {
+        var d = Math.max(screen.width, screen.height,$("#overlay").outerHeight(),$("#overlay").outerWidth()) + 200;
+        if(window.innerWidth) d = Math.max(d,window.innerWidth);
+        if(window.innerHeight) d = Math.max(d,window.innerHeight);
+        return d;
+    },
 	getLastUndo: function() {
 		return flows[undoMark];
 	},
