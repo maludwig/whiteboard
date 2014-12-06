@@ -2,7 +2,7 @@
 <html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<meta name="viewport" content="width=900, initial-scale=0.75">
+	<meta name="viewport" content="initial-scale=0.6">
 	<title>Mitchell's Whiteboard</title>
 	<link href="style.css" rel="stylesheet" type="text/css" />
 	<link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css">
@@ -11,21 +11,21 @@
 	<![endif]-->
 	<link href='http://fonts.googleapis.com/css?family=Julius+Sans+One' rel='stylesheet' type='text/css'>
 	<link href='http://fonts.googleapis.com/css?family=Varela' rel='stylesheet' type='text/css'>
-	<script type="text/javascript" src="js/excanvas.js"></script>
+	<script type="text/javascript" src="lib/excanvas.compiled.js"></script>
 	<script src="//code.jquery.com/jquery-1.9.1.js"></script>
 	<script src="//code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
-	<script type="text/javascript" src="js/jquery-me.2.2.js"></script>
-	<script type="text/javascript" src="js/json3.min.js"></script>
-	<script type="text/javascript" src="js/color.js"></script>
-	<script type="text/javascript" src="js/hook.js"></script>
-	<script type="text/javascript" src="js/touch.js"></script>
-	<script type="text/javascript" src="js/linearalgebra-1.3.js"></script>
-	<script type="text/javascript" src="js/jquery-center.1.2.js"></script>
-	<script type="text/javascript" src="menu.js"></script>
-	<script type="text/javascript" src="surface.js"></script>
-	<script type="text/javascript" src="flow.js"></script>
-	<script type="text/javascript" src="flowmgmt.js"></script>
-	<script type="text/javascript" src="server.js"></script>
+	<script type="text/javascript" src="lib/jquery-me.2.2.js"></script>
+	<script type="text/javascript" src="lib/json3.min.js"></script>
+	<script type="text/javascript" src="lib/color.js"></script>
+	<script type="text/javascript" src="lib/hook.js"></script>
+	<script type="text/javascript" src="lib/touch.js"></script>
+	<script type="text/javascript" src="lib/linearalgebra-1.3.js"></script>
+	<script type="text/javascript" src="lib/jquery-center.1.2.js"></script>
+	<script type="text/javascript" src="js/menu.js"></script>
+	<script type="text/javascript" src="js/surface.js"></script>
+	<script type="text/javascript" src="js/flow.js"></script>
+	<script type="text/javascript" src="js/flowmgmt.js"></script>
+	<script type="text/javascript" src="js/server.js"></script>
 	<style>
 	</style>
 	<script>
@@ -84,7 +84,11 @@
 				<div id="redo" class="inactive"><i class="icon-mail-forward"></i><p>Redo</p></div>
 		</div>
 		<hr />
-		<div id="minis"></div>
+        <p class="copyright">
+            Designed, implemented, and hosted by Mitchell Ludwig. Copyright 2014 by Mitchell Ludwig.
+        </p>
+		<hr />
+        <div id="minis"></div>
 	</div>
 	<div id="log"></div>
 	<div id="overlay"></div>
