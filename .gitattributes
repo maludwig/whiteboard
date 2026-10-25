@@ -1,0 +1,9 @@
+# LF everywhere, whatever core.autocrlf says. Migration checksums depend on it:
+# sqlx hashes the exact bytes of each migrations/*.sql file.
+* text=auto eol=lf
+
+*.png binary
+*.otf binary
+*.eot binary
+*.ttf binary
+*.woff binary

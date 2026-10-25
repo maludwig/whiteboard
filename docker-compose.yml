@@ -1,0 +1,40 @@
+name: whiteboard
+
+services:
+  # Starts with an empty `whiteboard` database and user (from dev-db.env);
+  # the schema comes only from `whiteboard db migrate`.
+  db:
+    image: mariadb:10.11
+    env_file: dev-db.env
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: docker
+      dockerfile: dev.Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    command: cargo run -- serve
+    environment:
+      # Linux build output stays out of the Windows checkout's wb_server/target.
+      CARGO_TARGET_DIR: /cargo-target
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - .:/whiteboard
+      - ./docker/server.dev.json:/etc/whiteboard/server.json:ro
+      - cargo-target:/cargo-target
+      - cargo-registry:/usr/local/cargo/registry
+
+volumes:
+  cargo-target:
+  cargo-registry:

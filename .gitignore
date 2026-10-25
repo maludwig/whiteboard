@@ -1,0 +1,9 @@
+# Local MariaDB data (docker compose)
+/data/
+
+# Database dumps; these hold real board data
+/*.sql
+
+# Local-only credentials
+/dev-db.env
+/docker/server.dev.json
