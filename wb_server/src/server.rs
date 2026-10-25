@@ -1,20 +1,24 @@
 //! The HTTP server: shared state, routes, and startup.
 
+use std::path::Path;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
-use axum::extract::State;
-use axum::http::{StatusCode, header};
-use axum::response::IntoResponse;
-use axum::routing::get;
+use anyhow::{Context, Result, bail};
+use axum::extract::{Request, State};
+use axum::http::{HeaderValue, StatusCode, header};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Redirect, Response};
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
+use crate::upload;
 
 /// How long the status check waits on the database before calling it down.
 const DB_CHECK_TIMEOUT: Duration = Duration::from_secs(2);
@@ -25,13 +29,34 @@ pub struct AppState {
     pub db_check_timeout: Duration,
 }
 
-/// All routes, mounted under `base_path` (e.g. `/whiteboard/api/status`).
-pub fn router(base_path: &str, state: AppState) -> Router {
-    let api = Router::new().route("/status", get(status));
-    Router::new()
-        .nest(&format!("{base_path}/api"), api)
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+/// All routes, mounted under `base_path`: the API at `{base_path}/api/...`, and,
+/// when `static_dir` is set, that directory's files at `{base_path}/`.
+pub fn router(base_path: &str, static_dir: Option<&Path>, state: AppState) -> Router {
+    let api = Router::new()
+        .route("/status", get(status))
+        .route("/upload", post(upload::upload))
+        .layer(middleware::map_response(no_store));
+    let mut app = Router::new().nest(&format!("{base_path}/api"), api);
+    if let Some(dir) = static_dir {
+        app = app
+            .nest_service(base_path, ServeDir::new(dir))
+            .layer(middleware::from_fn_with_state(base_path.to_owned(), add_trailing_slash));
+    }
+    app.layer(TraceLayer::new_for_http()).with_state(state)
+}
+
+/// API responses are never cacheable, by CloudFront or anyone else.
+async fn no_store(mut response: Response) -> Response {
+    response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
+/// `/whiteboard` -> `/whiteboard/`, so the page's relative links (css/, js/) resolve.
+async fn add_trailing_slash(State(base_path): State<String>, request: Request, next: Next) -> Response {
+    if request.uri().path() == base_path {
+        return Redirect::permanent(&format!("{base_path}/")).into_response();
+    }
+    next.run(request).await
 }
 
 #[derive(Serialize)]
@@ -56,7 +81,7 @@ async fn status(State(state): State<AppState>) -> impl IntoResponse {
             (StatusCode::SERVICE_UNAVAILABLE, "error")
         }
     };
-    (code, [(header::CACHE_CONTROL, "no-store")], Json(Status { now, db }))
+    (code, Json(Status { now, db }))
 }
 
 pub async fn serve(config: Config) -> Result<()> {
@@ -71,12 +96,19 @@ pub async fn serve(config: Config) -> Result<()> {
         .acquire_timeout(DB_CHECK_TIMEOUT)
         .connect_lazy(&config.database_url)
         .context("database_url is not a valid MySQL URL")?;
-    let app = router(&config.base_path, AppState { db, db_check_timeout: DB_CHECK_TIMEOUT });
+    if let Some(dir) = &config.static_dir {
+        if !dir.is_dir() {
+            bail!("static_dir {} is not a directory", dir.display());
+        }
+        tracing::info!("serving files from {} at {}/", dir.display(), config.base_path);
+    }
+    let state = AppState { db, db_check_timeout: DB_CHECK_TIMEOUT };
+    let app = router(&config.base_path, config.static_dir.as_deref(), state);
 
     let listener = tokio::net::TcpListener::bind(config.listen)
         .await
         .with_context(|| format!("could not listen on {}", config.listen))?;
-    tracing::info!("listening on http://{}{}/api/status", config.listen, config.base_path);
+    tracing::info!("listening on http://{}{}/", config.listen, config.base_path);
     axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await?;
     tracing::info!("shut down");
     Ok(())
@@ -132,7 +164,7 @@ mod tests {
 
     #[tokio::test]
     async fn status_reports_a_down_database_as_503() {
-        let app = router("/whiteboard", unreachable_state());
+        let app = router("/whiteboard", None, unreachable_state());
         let (code, headers, body) = get(app, "/whiteboard/api/status").await;
 
         assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
@@ -149,10 +181,37 @@ mod tests {
 
     #[tokio::test]
     async fn routes_live_under_base_path() {
-        let (code, _, _) = get(router("/whiteboard", unreachable_state()), "/api/status").await;
+        let (code, _, _) = get(router("/whiteboard", None, unreachable_state()), "/api/status").await;
         assert_eq!(code, StatusCode::NOT_FOUND);
 
-        let (code, _, _) = get(router("/elsewhere", unreachable_state()), "/elsewhere/api/status").await;
+        let (code, _, _) = get(router("/elsewhere", None, unreachable_state()), "/elsewhere/api/status").await;
         assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn static_dir_is_served_under_base_path() {
+        let dir = std::env::temp_dir().join(format!("wb_static_test_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("js")).unwrap();
+        std::fs::write(dir.join("index.html"), "<p>board</p>").unwrap();
+        std::fs::write(dir.join("js").join("app.js"), "var x;").unwrap();
+        let app = router("/whiteboard", Some(&dir), unreachable_state());
+
+        let (code, headers, _) = get(app.clone(), "/whiteboard").await;
+        assert_eq!(code, StatusCode::PERMANENT_REDIRECT);
+        assert_eq!(headers[header::LOCATION], "/whiteboard/");
+
+        let (code, _, body) = get(app.clone(), "/whiteboard/").await;
+        assert_eq!(code, StatusCode::OK);
+        assert_eq!(body, b"<p>board</p>");
+        let (code, _, body) = get(app.clone(), "/whiteboard/js/app.js").await;
+        assert_eq!(code, StatusCode::OK);
+        assert_eq!(body, b"var x;");
+        let (code, _, _) = get(app.clone(), "/whiteboard/missing.js").await;
+        assert_eq!(code, StatusCode::NOT_FOUND);
+
+        // The API still wins over the static files.
+        let (code, _, _) = get(app, "/whiteboard/api/status").await;
+        assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

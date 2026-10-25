@@ -5,5 +5,5 @@
 /*.sql
 
 # Local-only credentials
-/dev-db.env
+/.env
 /docker/server.dev.json

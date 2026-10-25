@@ -1,6 +1,8 @@
+mod boards;
 mod config;
 mod db;
 mod server;
+mod upload;
 
 use std::io::Read;
 use std::process::ExitCode;

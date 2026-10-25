@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 pub const CONFIG_ENV: &str = "WHITEBOARD_CONFIG";
 
 /// Every setting's name, in the order `Config` declares them.
-pub const KEYS: &[&str] = &["listen", "base_path", "database_url", "log"];
+pub const KEYS: &[&str] = &["listen", "base_path", "database_url", "log", "static_dir"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +31,10 @@ pub struct Config {
     /// A tracing filter, e.g. `info` or `info,sqlx=warn`.
     #[serde(default = "default_log")]
     pub log: String,
+    /// If set, files in this directory are served under `base_path` (for local
+    /// development; in production Apache serves the frontend).
+    #[serde(default)]
+    pub static_dir: Option<PathBuf>,
 }
 
 fn default_listen() -> SocketAddr {
@@ -190,6 +194,7 @@ mod tests {
         assert_eq!(config.listen, default_listen());
         assert_eq!(config.base_path, "/whiteboard");
         assert_eq!(config.log, "info");
+        assert_eq!(config.static_dir, None);
     }
 
     #[test]

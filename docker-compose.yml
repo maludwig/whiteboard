@@ -1,11 +1,11 @@
 name: whiteboard
 
 services:
-  # Starts with an empty `whiteboard` database and user (from dev-db.env);
+  # Starts with an empty `whiteboard` database and user (from .env);
   # the schema comes only from `whiteboard db migrate`.
   db:
     image: mariadb:10.11
-    env_file: dev-db.env
+    env_file: .env
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
@@ -27,6 +27,8 @@ services:
     environment:
       # Linux build output stays out of the Windows checkout's wb_server/target.
       CARGO_TARGET_DIR: /cargo-target
+      # For #[sqlx::test]; the server itself reads /etc/whiteboard/server.json.
+      DATABASE_URL: mysql://root:${MARIADB_ROOT_PASSWORD:?set in .env}@db:3306/whiteboard
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
