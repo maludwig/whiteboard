@@ -1,7 +1,8 @@
 import { makeAutoObservable, runInAction } from 'mobx'
-import { HttpUploadApi, type Joined, type LineRow, type UploadApi } from '../api'
+import { HttpUploadApi, type Joined, type LineRow, type NewLine, type UploadApi } from '../api'
 import { type Nav, browserNav } from '../nav'
 import { remoteLog } from '../remoteLog'
+import { BoardSocket, type Live, type Reply, SocketClosed, socketUrl } from '../socket'
 import { type Stroke, deserialize, serialize } from '../stroke'
 import { type DrawingStore, drawingStore } from './drawingStore'
 
@@ -15,8 +16,12 @@ const CODE_WRAP = 65536
  * change the drawing and tell the server about it.
  *
  * Offline, the page is a private board. Sharing creates a board on the server,
- * uploads what's drawn so far, and polls for everyone else's strokes. Each
+ * uploads what's drawn so far, and follows everyone else's strokes. Each
  * synced stroke is known by (client that drew it, code), the server's key.
+ *
+ * Joining is over HTTP. Then the WebSocket (`live`) rejoins as the same client
+ * and carries everything while it's up: the server pushes new rows, and writes
+ * go over it. Whenever it's down, the board polls over HTTP instead.
  */
 export class BoardStore {
   status: Status = 'offline'
@@ -24,6 +29,8 @@ export class BoardStore {
   client: number | null = null
   /** The last server error, shown until something succeeds again. */
   lastError: string | null = null
+  /** The WebSocket is joined and watching the board, so polling is off. */
+  liveUp = false
 
   private since = 0
   private code = 0
@@ -37,11 +44,13 @@ export class BoardStore {
     private readonly api: UploadApi,
     private readonly nav: Nav,
     private readonly pollMs = 1000,
+    private readonly live: Live | null = null,
   ) {
-    makeAutoObservable<BoardStore, 'drawing' | 'api' | 'nav' | 'keyOf' | 'byKey' | 'timer'>(this, {
+    makeAutoObservable<BoardStore, 'drawing' | 'api' | 'nav' | 'live' | 'keyOf' | 'byKey' | 'timer'>(this, {
       drawing: false,
       api: false,
       nav: false,
+      live: false,
       keyOf: false,
       byKey: false,
       timer: false,
@@ -89,8 +98,8 @@ export class BoardStore {
   }
 
   stop() {
-    if (this.timer) clearInterval(this.timer)
-    this.timer = null
+    this.stopPolling()
+    this.live?.disconnect()
   }
 
   /** A finished stroke drawn on this page. */
@@ -106,7 +115,13 @@ export class BoardStore {
     if (!key) return
     this.forget(stroke)
     const [owner, code] = key.split(':').map(Number)
-    void this.send(this.api.undo(this.hash, owner, code))
+    const hash = this.hash
+    void this.send(
+      this.either(
+        async (live) => void (await live.request({ action: 'undo', client: owner, code })),
+        () => this.api.undo(hash, owner, code),
+      ),
+    )
   }
 
   redo() {
@@ -119,14 +134,19 @@ export class BoardStore {
     this.keyOf.clear()
     this.byKey.clear()
     if (!this.isOnline || this.hash === null || this.client === null) return
-    void this.send(this.api.clear(this.hash, this.client)).then((id) => {
+    const [hash, client, code] = [this.hash, this.client, this.nextCode()]
+    const cleared = this.either(
+      async (live) => (await live.request({ action: 'clear', code })).since,
+      () => this.api.clear(hash, client, code),
+    )
+    void this.send(cleared).then((id) => {
       if (typeof id === 'number') runInAction(() => (this.since = Math.max(this.since, id)))
     })
   }
 
-  /** Fetch and apply everything new on the board. Skipped while a poll is in flight. */
+  /** Fetch and apply everything new on the board over HTTP. Skipped while a poll is in flight. */
   async poll(): Promise<void> {
-    if (!this.isOnline || this.polling || this.hash === null || this.client === null) return
+    if (!this.isOnline || this.liveUp || this.polling || this.hash === null || this.client === null) return
     this.polling = true
     const first = this.since === 0
     const since = this.since
@@ -139,14 +159,9 @@ export class BoardStore {
       if (logIt) {
         remoteLog.log(`getlines since ${since}: request started`, asked)
         remoteLog.log(`getlines since ${since}: got ${reply.lines.length} rows in ${got - asked}ms`, got)
-        remoteLog.log(`drawing ${reply.lines.length} rows: started`, got)
       }
-      runInAction(() => {
-        this.since = Math.max(this.since, reply.since)
-        this.apply(reply.lines, first)
-        this.lastError = null
-      })
-      if (logIt) remoteLog.log(`drawing ${reply.lines.length} rows: ended in ${Date.now() - got}ms`)
+      this.receive(reply.since, reply.lines, first)
+      runInAction(() => (this.lastError = null))
     } catch (e) {
       this.failed(e)
     } finally {
@@ -154,8 +169,23 @@ export class BoardStore {
     }
   }
 
+  /** Apply rows from a poll, a getlines over the socket, or a push. */
+  private receive(since: number, lines: LineRow[], first: boolean) {
+    const started = Date.now()
+    runInAction(() => {
+      this.apply(lines, first)
+      this.since = Math.max(this.since, since)
+    })
+    if (lines.length) remoteLog.log(`drawing ${lines.length} rows: ended in ${Date.now() - started}ms`)
+  }
+
   private apply(lines: LineRow[], first: boolean) {
     for (const line of lines) {
+      // Already seen, through the other of poll and socket.
+      if (line.id !== undefined) {
+        if (line.id <= this.since) continue
+        this.since = line.id
+      }
       const key = `${line.client}:${line.code}`
       if (line.type === 'flow') {
         if (this.byKey.has(key)) continue
@@ -175,7 +205,7 @@ export class BoardStore {
         }
       } else if (line.type === 'clear' && !first) {
         // A clear in the history only matters if it happens while we watch;
-        // on the first poll, the rows after it are the board.
+        // on the first read, the rows after it are the board.
         this.drawing.clear()
         this.keyOf.clear()
         this.byKey.clear()
@@ -190,21 +220,97 @@ export class BoardStore {
     this.lastError = null
     remoteLog.board = { hash: joined.hash, client: joined.clientid }
     remoteLog.log(`online on board ${joined.hash} as client ${joined.clientid}`)
-    this.stop()
-    this.timer = setInterval(() => void this.poll(), this.pollMs)
+    this.startPolling()
+    this.live?.connect({
+      opened: () => void this.liveOpened(),
+      pushed: (reply) => this.pushed(reply),
+      lost: () => this.liveLost(),
+    })
+  }
+
+  /** A (re)connected socket: rejoin as this client, catch up, and stop polling. */
+  private async liveOpened() {
+    const live = this.live
+    if (!live || this.hash === null || this.client === null) return
+    try {
+      await live.request({ action: 'init', hash: this.hash, client: this.client })
+      const since = this.since
+      const reply = await live.request<LineRow[]>({ action: 'getlines', since })
+      this.receive(reply.since, reply.data, since === 0)
+      runInAction(() => {
+        this.liveUp = true
+        this.lastError = null
+      })
+      this.stopPolling()
+      remoteLog.log(`live from since ${since}: ${reply.data.length} rows`)
+    } catch (e) {
+      // Polling carries on; the next reconnect tries again.
+      if (!(e instanceof SocketClosed)) this.failed(e)
+    }
+  }
+
+  private pushed(reply: Reply) {
+    if (!this.liveUp || !Array.isArray(reply.data)) return
+    remoteLog.log(`pushed ${reply.data.length} rows`)
+    this.receive(reply.since, reply.data as LineRow[], false)
+  }
+
+  private liveLost() {
+    if (!this.liveUp) return
+    runInAction(() => (this.liveUp = false))
+    remoteLog.log('live lost: polling')
+    this.startPolling()
+  }
+
+  private startPolling() {
+    if (!this.timer) this.timer = setInterval(() => void this.poll(), this.pollMs)
     void this.poll()
+  }
+
+  private stopPolling() {
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
+  }
+
+  /**
+   * A write over the socket while it's up, otherwise (or if it drops before
+   * answering) over HTTP. If the server had already acted, the resend is
+   * recognised by its (client, code) and skipped.
+   */
+  private async either<T>(viaLive: (live: Live) => Promise<T>, viaHttp: () => Promise<T>): Promise<T> {
+    if (this.live && this.liveUp) {
+      try {
+        return await viaLive(this.live)
+      } catch (e) {
+        if (!(e instanceof SocketClosed)) throw e
+      }
+    }
+    return viaHttp()
   }
 
   private async upload(strokes: Stroke[]) {
     if (this.hash === null || this.client === null) return
-    const lines = []
+    const [hash, client] = [this.hash, this.client]
+    const lines: NewLine[] = []
     for (const stroke of strokes) {
       if (this.keyOf.has(stroke)) continue
-      this.code = (this.code + 1) % CODE_WRAP
-      this.remember(stroke, `${this.client}:${this.code}`)
-      lines.push({ code: this.code, flow: serialize(stroke) })
+      const code = this.nextCode()
+      this.remember(stroke, `${client}:${code}`)
+      lines.push({ code, flow: serialize(stroke) })
     }
-    if (lines.length) await this.send(this.api.addLines(this.hash, this.client, lines))
+    if (!lines.length) return
+    await this.send(
+      this.either(
+        async (live) => void (await live.request({ action: 'lines', linedata: lines })),
+        () => this.api.addLines(hash, client, lines),
+      ),
+    )
+  }
+
+  /** Names this page's next write (a stroke or a clear), so resends are recognised. */
+  private nextCode(): number {
+    this.code = (this.code + 1) % CODE_WRAP
+    return this.code
   }
 
   private remember(stroke: Stroke, key: string) {
@@ -240,4 +346,10 @@ export class BoardStore {
   }
 }
 
-export const boardStore = new BoardStore(drawingStore, new HttpUploadApi(), browserNav)
+export const boardStore = new BoardStore(
+  drawingStore,
+  new HttpUploadApi(),
+  browserNav,
+  1000,
+  new BoardSocket(socketUrl()),
+)

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Joined, LineRow, NewLine, UploadApi } from '../api'
 import type { Nav } from '../nav'
+import { type Live, type LiveHandlers, type Reply, SocketClosed } from '../socket'
 import { deserialize, serialize } from '../stroke'
 import { BoardStore } from './boardStore'
 import { DrawingStore } from './drawingStore'
@@ -23,8 +24,8 @@ class FakeApi implements UploadApi {
   async addLines(hash: string, client: number, lines: NewLine[]) {
     this.calls.push(['lines', hash, client, lines.map((l) => l.code)])
   }
-  async clear(hash: string, client: number) {
-    this.calls.push(['clear', hash, client])
+  async clear(hash: string, client: number, code: number) {
+    this.calls.push(['clear', hash, client, code])
     return 99
   }
   async undo(hash: string, owner: number, code: number) {
@@ -54,6 +55,28 @@ class FakeNav implements Nav {
   }
   href = () => `http://example/whiteboard/#${this.current}`
   reload = () => {}
+}
+
+/** Records requests and answers them by action; `down` makes them fail as a dropped socket would. */
+class FakeLive implements Live {
+  handlers: LiveHandlers | null = null
+  requests: Record<string, unknown>[] = []
+  answers: Record<string, Reply> = {}
+  down = false
+  connect(handlers: LiveHandlers) {
+    this.handlers = handlers
+  }
+  disconnect() {
+    this.handlers = null
+  }
+  async request<T>(fields: Record<string, unknown>): Promise<Reply<T>> {
+    this.requests.push(fields)
+    if (this.down) throw new SocketClosed(`${fields.action}: connection lost`)
+    return (this.answers[String(fields.action)] ?? { since: 0, data: '' }) as Reply<T>
+  }
+  of(action: string) {
+    return this.requests.filter((r) => r.action === action)
+  }
 }
 
 const s = (n: number) => deserialize({ p: [n, n], c: '#000', t: 'pen', w: 3 })
@@ -170,8 +193,90 @@ describe('BoardStore', () => {
     board.clear()
     await settle()
     expect(drawing.visible).toHaveLength(0)
-    expect(api.of('clear')).toEqual([['clear', 'ab', 2]])
+    // Named like a stroke: the stroke before it was code 1.
+    expect(api.of('clear')).toEqual([['clear', 'ab', 2, 2]])
     await board.poll()
     expect(api.of('getlines').at(-1)).toEqual(['getlines', 'ab', 2, 99])
+  })
+})
+
+describe('BoardStore with a socket', () => {
+  const withId = (row: LineRow, id: number): LineRow => ({ ...row, id })
+
+  /** Joined to board ab as client 2, the first poll answered, and the socket up. */
+  async function live(firstPoll: { since: number; lines: LineRow[] } = { since: 4, lines: [] }) {
+    const drawing = new DrawingStore()
+    const api = new FakeApi()
+    const socket = new FakeLive()
+    const board = new BoardStore(drawing, api, new FakeNav('ab'), 1e9, socket)
+    stores.push(board)
+    api.pending.push(firstPoll)
+    await board.start()
+    await settle()
+    return { drawing, api, socket, board }
+  }
+
+  async function open(socket: FakeLive, getlines: Reply<LineRow[]> = { since: 4, data: [] }) {
+    socket.answers.getlines = getlines
+    socket.handlers!.opened()
+    await settle()
+  }
+
+  it('rejoins as the same client, catches up from the poll, and stops polling', async () => {
+    const { api, socket, board, drawing } = await live()
+    expect(socket.handlers).not.toBeNull()
+    await open(socket, { since: 6, data: [withId(flowRow(7, 2, 2), 6)] })
+    expect(socket.requests).toEqual([
+      { action: 'init', hash: 'ab', client: 2 },
+      { action: 'getlines', since: 4 },
+    ])
+    expect(drawing.visible).toHaveLength(1)
+    expect(board.liveUp).toBe(true)
+
+    const polls = api.of('getlines').length
+    await board.poll()
+    expect(api.of('getlines')).toHaveLength(polls)
+  })
+
+  it('applies pushes, skipping rows it already has', async () => {
+    const { socket, board, drawing } = await live()
+    await open(socket, { since: 5, data: [withId({ type: 'clear', data: '', client: 9, code: 0 }, 5)] })
+    board.commit(s(1)) // drawn after the clear
+    socket.handlers!.pushed({ since: 5, data: [withId({ type: 'clear', data: '', client: 9, code: 0 }, 5)] })
+    expect(drawing.visible).toHaveLength(1) // the same clear again doesn't wipe it
+    socket.handlers!.pushed({ since: 8, data: [withId(flowRow(9, 1, 2), 8)] })
+    expect(drawing.visible).toHaveLength(2)
+  })
+
+  it('writes over the socket while it is up', async () => {
+    const { api, socket, board } = await live()
+    api.pending.push({ since: 4, lines: [] })
+    await open(socket, { since: 5, data: [withId(flowRow(7, 4, 1), 5)] })
+    board.commit(s(2))
+    board.undo()
+    socket.answers.clear = { since: 99, data: '' }
+    board.clear()
+    await settle()
+    expect(socket.of('lines')).toEqual([{ action: 'lines', linedata: [{ code: 1, flow: serialize(s(2)) }] }])
+    expect(socket.of('undo')).toEqual([{ action: 'undo', client: 2, code: 1 }])
+    expect(socket.of('clear')).toEqual([{ action: 'clear', code: 2 }])
+    expect(api.of('lines').concat(api.of('undo'), api.of('clear'))).toEqual([])
+
+    // Polling resumes from after the clear once the socket goes.
+    socket.handlers!.lost()
+    await settle()
+    expect(board.liveUp).toBe(false)
+    expect(api.of('getlines').at(-1)).toEqual(['getlines', 'ab', 2, 99])
+  })
+
+  it('sends over HTTP when the socket drops mid-request', async () => {
+    const { api, socket, board } = await live()
+    await open(socket)
+    socket.down = true
+    board.commit(s(1))
+    await settle()
+    expect(socket.of('lines')).toHaveLength(1)
+    expect(api.of('lines')).toEqual([['lines', 'ab', 2, [1]]])
+    expect(board.lastError).toBeNull()
   })
 })

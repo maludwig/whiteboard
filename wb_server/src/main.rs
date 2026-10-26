@@ -4,7 +4,9 @@ mod clientlog;
 mod config;
 mod db;
 mod server;
+mod signals;
 mod upload;
+mod ws;
 
 use std::io::Read;
 use std::process::ExitCode;

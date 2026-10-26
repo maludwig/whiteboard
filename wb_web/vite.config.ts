@@ -20,6 +20,7 @@ export default defineConfig({
     // `npm run dev` talks to a locally running wb_server (whiteboard serve).
     proxy: {
       '/whiteboard/api': 'http://127.0.0.1:8181',
+      '/whiteboard/ws': { target: 'ws://127.0.0.1:8181', ws: true },
     },
   },
   test: {

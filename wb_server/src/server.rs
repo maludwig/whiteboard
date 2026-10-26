@@ -14,13 +14,14 @@ use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
-use tokio::sync::Notify;
+use tokio::sync::{Notify, watch};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
-use crate::{admin, clientlog, upload};
+use crate::signals::BoardSignals;
+use crate::{admin, clientlog, upload, ws};
 
 /// How long the status check waits on the database before calling it down.
 const DB_CHECK_TIMEOUT: Duration = Duration::from_secs(2);
@@ -32,11 +33,30 @@ pub struct AppState {
     pub admin_token: Option<String>,
     /// Notified to shut the server down gracefully (see `admin::die`).
     pub shutdown: Arc<Notify>,
+    /// Set to true once shutdown begins, so WebSockets close instead of
+    /// holding the server open.
+    pub closing: Arc<watch::Sender<bool>>,
     pub stream_logs: bool,
+    pub signals: BoardSignals,
+    pub heartbeat: Heartbeat,
 }
 
-/// All routes, mounted under `base_path`: the API at `{base_path}/api/...`, and,
-/// when `static_dir` is set, that directory's files at `{base_path}/`.
+/// WebSocket keepalive: ping every `every`; close if nothing comes back within `timeout`.
+#[derive(Clone, Copy, Debug)]
+pub struct Heartbeat {
+    pub every: Duration,
+    pub timeout: Duration,
+}
+
+impl Default for Heartbeat {
+    fn default() -> Heartbeat {
+        Heartbeat { every: Duration::from_secs(20), timeout: Duration::from_secs(10) }
+    }
+}
+
+/// All routes, mounted under `base_path`: the API at `{base_path}/api/...`, the
+/// WebSocket at `{base_path}/ws`, and, when `static_dir` is set, that
+/// directory's files at `{base_path}/`.
 pub fn router(base_path: &str, static_dir: Option<&Path>, state: AppState) -> Router {
     let api = Router::new()
         .route("/status", get(status))
@@ -45,7 +65,9 @@ pub fn router(base_path: &str, static_dir: Option<&Path>, state: AppState) -> Ro
         .route("/client-config", get(clientlog::client_config))
         .route("/log", post(clientlog::log))
         .layer(middleware::map_response(no_store));
-    let mut app = Router::new().nest(&format!("{base_path}/api"), api);
+    let mut app = Router::new()
+        .nest(&format!("{base_path}/api"), api)
+        .route(&format!("{base_path}/ws"), get(ws::upgrade));
     if let Some(dir) = static_dir {
         app = app
             .nest_service(base_path, ServeDir::new(dir))
@@ -82,7 +104,7 @@ async fn isolate(mut response: Response) -> Response {
     response
 }
 
-/// `/whiteboard` -> `/whiteboard/`, so the page's relative links (css/, js/) resolve.
+/// `/whiteboard` -> `/whiteboard/`, so the page's relative URLs (api/, ws) resolve.
 async fn add_trailing_slash(State(base_path): State<String>, request: Request, next: Next) -> Response {
     if request.uri().path() == base_path {
         return Redirect::permanent(&format!("{base_path}/")).into_response();
@@ -146,12 +168,16 @@ pub async fn serve(config: Config) -> Result<()> {
         tracing::info!("admin API enabled at {}/api/admin/", config.base_path);
     }
     let shutdown = Arc::new(Notify::new());
+    let closing = Arc::new(watch::Sender::new(false));
     let state = AppState {
         db,
         db_check_timeout: DB_CHECK_TIMEOUT,
         admin_token: config.admin_token.clone(),
         shutdown: shutdown.clone(),
+        closing: closing.clone(),
         stream_logs: config.stream_logs,
+        signals: BoardSignals::default(),
+        heartbeat: Heartbeat::default(),
     };
     if config.stream_logs {
         tracing::info!("streaming frontend logs into this log (target \"client\")");
@@ -162,13 +188,14 @@ pub async fn serve(config: Config) -> Result<()> {
         .await
         .with_context(|| format!("could not listen on {}", config.listen))?;
     tracing::info!("listening on http://{}{}/", config.listen, config.base_path);
-    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal(shutdown)).await?;
+    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal(shutdown, closing)).await?;
     tracing::info!("shut down");
     Ok(())
 }
 
-/// Ctrl-C anywhere, SIGTERM on Unix (what systemd sends on stop), or the admin API.
-async fn shutdown_signal(requested: Arc<Notify>) {
+/// Ctrl-C anywhere, SIGTERM on Unix (what systemd sends on stop), or the admin
+/// API. Then tells open WebSockets to close.
+async fn shutdown_signal(requested: Arc<Notify>, closing: Arc<watch::Sender<bool>>) {
     let ctrl_c = async {
         tokio::signal::ctrl_c().await.ok();
     };
@@ -190,6 +217,7 @@ async fn shutdown_signal(requested: Arc<Notify>) {
         _ = requested.notified() => {}
     }
     tracing::info!("shutting down");
+    closing.send_replace(true);
 }
 
 /// State for router tests: a pool aimed at a port nothing listens on, so every
@@ -205,7 +233,10 @@ pub fn test_state(admin_token: Option<&str>) -> AppState {
         db_check_timeout: Duration::from_millis(300),
         admin_token: admin_token.map(str::to_owned),
         shutdown: Arc::new(Notify::new()),
+        closing: Arc::new(watch::Sender::new(false)),
         stream_logs: false,
+        signals: BoardSignals::default(),
+        heartbeat: Heartbeat::default(),
     }
 }
 

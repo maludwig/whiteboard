@@ -1,9 +1,13 @@
-//! `POST {base_path}/api/upload`: the upload.php protocol, so the existing
-//! frontend (js/server.js) works unchanged apart from the URL.
+//! `POST {base_path}/api/upload`: the upload.php protocol, over HTTP. The
+//! frontend uses it to join a board, and whenever its WebSocket is down.
 //!
 //! Requests are form-encoded with an `action`. Success answers
 //! `{"since": N, "data": ...}` as PHP did. Failures answer `{"error": "..."}` with
 //! a 4xx/5xx status, where PHP gave an empty 200 or an HTML fatal error.
+//!
+//! Changed from PHP: client ids are random 32-bit numbers, not a counter that
+//! wrapped at 256, and writes are idempotent (see `boards`), so a request that
+//! seemed to fail can be sent again. `clear` takes a `code` for that.
 
 use std::str::FromStr;
 
@@ -39,9 +43,13 @@ fn reply(since: i64, data: Value) -> Json<Reply> {
 
 /// One element of `linedata`.
 #[derive(Debug, Deserialize)]
-struct LineIn {
+pub struct LineIn {
     code: u16,
     flow: Value,
+}
+
+pub fn to_flows(lines: Vec<LineIn>) -> Vec<NewFlow> {
+    lines.into_iter().map(|line| NewFlow { code: line.code, json: line.flow.to_string() }).collect()
 }
 
 pub async fn upload(State(state): State<AppState>, Form(form): Form<UploadForm>) -> Result<Json<Reply>, ApiError> {
@@ -51,7 +59,7 @@ pub async fn upload(State(state): State<AppState>, Form(form): Form<UploadForm>)
 
     if action == "new" {
         let board = boards::create(db).await?;
-        let clientid = boards::next_client(db, &board).await?;
+        let clientid = boards::new_client();
         return Ok(reply(0, json!({ "hash": board.hash.as_str(), "clientid": clientid })));
     }
 
@@ -60,25 +68,28 @@ pub async fn upload(State(state): State<AppState>, Form(form): Form<UploadForm>)
     let board = boards::find(db, hash).await?.ok_or(ApiError::NotFound("no such board"))?;
 
     if action == "init" {
-        let clientid = boards::next_client(db, &board).await?;
+        let clientid = boards::new_client();
         return Ok(reply(0, json!({ "hash": board.hash.as_str(), "clientid": clientid })));
     }
 
-    let client: u8 = number(&form.client, "client")?;
+    let client: u32 = number(&form.client, "client")?;
     match action {
         "lines" => {
             let lines: Vec<LineIn> = serde_json::from_str(required(&form.linedata, "linedata")?)
                 .map_err(|e| ApiError::bad(format!("linedata: {e}")))?;
-            let flows: Vec<NewFlow> = lines
-                .into_iter()
-                .map(|line| NewFlow { code: line.code, json: line.flow.to_string() })
-                .collect();
-            boards::add_flows(db, &board, client, &flows).await?;
+            boards::add_flows(db, &board, client, &to_flows(lines)).await?;
+            state.signals.notify(board.id);
             Ok(reply(0, json!("")))
         }
-        "clear" => Ok(reply(boards::clear(db, &board, client).await?, json!(""))),
+        "clear" => {
+            let code = form.code.as_ref().map(|_| number(&form.code, "code")).transpose()?;
+            let id = boards::clear(db, &board, client, code).await?;
+            state.signals.notify(board.id);
+            Ok(reply(id, json!("")))
+        }
         "undo" => {
             boards::undo(db, &board, client, number(&form.code, "code")?).await?;
+            state.signals.notify(board.id);
             Ok(reply(0, json!("")))
         }
         "getlines" => {
@@ -107,8 +118,21 @@ pub enum ApiError {
 }
 
 impl ApiError {
-    fn bad(message: impl Into<String>) -> ApiError {
+    pub fn bad(message: impl Into<String>) -> ApiError {
         ApiError::BadRequest(message.into())
+    }
+
+    /// The status and the message to show, logging internal errors (whose
+    /// details stay in the log).
+    pub fn status_and_message(self) -> (StatusCode, String) {
+        match self {
+            ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
+            ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message.to_owned()),
+            ApiError::Internal(e) => {
+                tracing::error!(error = format!("{e:#}"), "request failed");
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_owned())
+            }
+        }
     }
 }
 
@@ -120,20 +144,13 @@ impl From<anyhow::Error> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (code, message) = match self {
-            ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
-            ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message.to_owned()),
-            ApiError::Internal(e) => {
-                tracing::error!(error = format!("{e:#}"), "upload failed");
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal error".to_owned())
-            }
-        };
+        let (code, message) = self.status_and_message();
         (code, Json(json!({ "error": message }))).into_response()
     }
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, header};
@@ -147,7 +164,7 @@ mod tests {
         router("/whiteboard", None, AppState { db: pool, ..test_state(None) })
     }
 
-    async fn post(app: &Router, fields: &[(&str, &str)]) -> (StatusCode, Value) {
+    pub(crate) async fn post(app: &Router, fields: &[(&str, &str)]) -> (StatusCode, Value) {
         let body = fields
             .iter()
             .map(|(k, v)| format!("{}={}", urlencode(k), urlencode(v)))
@@ -189,18 +206,19 @@ mod tests {
     const FLOW: &str = r#"[{"code":1,"flow":{"p":[1,2,3,4],"c":"rgba(30, 119, 185, 1)","t":"pen","w":10}}]"#;
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn new_board_then_init_hands_out_successive_clients(pool: MySqlPool) {
+    async fn new_board_then_init_hands_out_random_clients(pool: MySqlPool) {
         let app = app(pool);
         let (code, new) = post(&app, &[("action", "new")]).await;
         assert_eq!(code, StatusCode::OK);
         assert_eq!(new["since"], 0);
         let hash = new["data"]["hash"].as_str().unwrap();
         assert_eq!(hash.len(), 2, "first board should get a 2-digit hash: {new}");
-        assert_eq!(new["data"]["clientid"], 1);
 
         let (_, init) = post(&app, &[("action", "init"), ("hash", hash)]).await;
         assert_eq!(init["data"]["hash"], hash);
-        assert_eq!(init["data"]["clientid"], 2);
+        let (first, second) = (new["data"]["clientid"].as_u64(), init["data"]["clientid"].as_u64());
+        assert!(first.is_some() && second.is_some() && first != second, "{new} {init}");
+        assert!(first.unwrap() <= u64::from(u32::MAX));
     }
 
     #[sqlx::test(migrations = "../migrations")]
@@ -240,18 +258,66 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn client_zero_is_a_real_client(pool: MySqlPool) {
+    async fn any_32_bit_client_is_a_real_client(pool: MySqlPool) {
+        let app = app(pool);
+        let (hash, alice, _) = board_with_two_clients(&app).await;
+        for client in ["0", "4294967295"] {
+            let (code, _) = post(&app, &[("action", "lines"), ("hash", &hash), ("client", client), ("linedata", FLOW)]).await;
+            assert_eq!(code, StatusCode::OK);
+        }
+        let (_, lines) = getlines(&app, &hash, &alice, "0").await;
+        let clients: Vec<_> = lines.iter().map(|line| line["client"].clone()).collect();
+        assert_eq!(clients, [json!(0), json!(4_294_967_295_u32)]);
+    }
+
+    async fn count(pool: &MySqlPool, kind: &str) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*) FROM `lines` WHERE type = ?").bind(kind).fetch_one(pool).await.unwrap()
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn resent_strokes_are_stored_once(pool: MySqlPool) {
         let app = app(pool.clone());
         let (hash, alice, _) = board_with_two_clients(&app).await;
-        sqlx::query("UPDATE boards SET clients = 255").execute(&pool).await.unwrap();
-        let (_, init) = post(&app, &[("action", "init"), ("hash", &hash)]).await;
-        assert_eq!(init["data"]["clientid"], 0, "should wrap from 255 to 0");
+        let two = r##"[{"code":1,"flow":{"p":[1,2],"c":"#000","t":"pen","w":1}},{"code":2,"flow":{"p":[3,4],"c":"#000","t":"pen","w":1}}]"##;
+        post(&app, &[("action", "lines"), ("hash", &hash), ("client", &alice), ("linedata", two)]).await;
+        let (code, _) = post(&app, &[("action", "lines"), ("hash", &hash), ("client", &alice), ("linedata", two)]).await;
+        assert_eq!(code, StatusCode::OK, "a resend succeeds");
+        assert_eq!(count(&pool, "flow").await, 2);
 
-        let (code, _) = post(&app, &[("action", "lines"), ("hash", &hash), ("client", "0"), ("linedata", FLOW)]).await;
+        // Same name, different stroke: a genuine clash, so it's kept.
+        let clash = r##"[{"code":1,"flow":{"p":[9,9],"c":"#000","t":"pen","w":1}}]"##;
+        post(&app, &[("action", "lines"), ("hash", &hash), ("client", &alice), ("linedata", clash)]).await;
+        assert_eq!(count(&pool, "flow").await, 3);
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn resent_undos_are_recorded_once(pool: MySqlPool) {
+        let app = app(pool.clone());
+        let (hash, alice, _) = board_with_two_clients(&app).await;
+        post(&app, &[("action", "lines"), ("hash", &hash), ("client", &alice), ("linedata", FLOW)]).await;
+        for _ in 0..2 {
+            let (code, _) = post(&app, &[("action", "undo"), ("hash", &hash), ("client", &alice), ("code", "1")]).await;
+            assert_eq!(code, StatusCode::OK);
+        }
+        assert_eq!(count(&pool, "undo").await, 1);
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn a_resent_clear_keeps_what_was_drawn_since(pool: MySqlPool) {
+        let app = app(pool.clone());
+        let (hash, alice, bob) = board_with_two_clients(&app).await;
+        let clear = [("action", "clear"), ("hash", &hash), ("client", &alice), ("code", "5")];
+        let (_, first) = post(&app, &clear).await;
+        post(&app, &[("action", "lines"), ("hash", &hash), ("client", &bob), ("linedata", FLOW)]).await;
+        let (code, again) = post(&app, &clear).await;
         assert_eq!(code, StatusCode::OK);
-        let (_, lines) = getlines(&app, &hash, &alice, "0").await;
-        assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0]["client"], 0);
+        assert_eq!(again["since"], first["since"], "answered with the first clear's id");
+        assert_eq!(count(&pool, "flow").await, 1, "Bob's stroke survives");
+        assert_eq!(count(&pool, "clear").await, 1);
+
+        // Without a code (an older client), every clear clears.
+        post(&app, &[("action", "clear"), ("hash", &hash), ("client", &alice)]).await;
+        assert_eq!(count(&pool, "flow").await, 0);
     }
 
     #[sqlx::test(migrations = "../migrations")]
@@ -321,7 +387,7 @@ mod tests {
             (&[("action", "init"), ("hash", "zz")], StatusCode::BAD_REQUEST, "hex"),
             (&[("action", "init"), ("hash", "abcdef01")], StatusCode::NOT_FOUND, "no such board"),
             (&[("action", "getlines"), ("hash", &hash)], StatusCode::BAD_REQUEST, "missing client"),
-            (&[("action", "getlines"), ("hash", &hash), ("client", "256")], StatusCode::BAD_REQUEST, "client"),
+            (&[("action", "getlines"), ("hash", &hash), ("client", "4294967296")], StatusCode::BAD_REQUEST, "client"),
             (&[("action", "lines"), ("hash", &hash), ("client", &alice), ("linedata", "{")], StatusCode::BAD_REQUEST, "linedata"),
             (&[("action", "fly"), ("hash", &hash), ("client", &alice)], StatusCode::BAD_REQUEST, "unknown action"),
         ];

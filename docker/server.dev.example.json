@@ -3,6 +3,6 @@
   "base_path": "/whiteboard",
   "database_url": "mysql://whiteboard:change-me@db:3306/whiteboard",
   "log": "info",
-  "static_dir": "/whiteboard/static_frontend",
+  "static_dir": "/whiteboard/wb_web/dist",
   "stream_logs": false
 }

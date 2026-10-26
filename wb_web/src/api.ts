@@ -2,6 +2,8 @@ import type { StoredStroke } from './stroke'
 
 /** A row from `getlines`. `data` is the stroke JSON as a string (empty for undo/clear). */
 export interface LineRow {
+  /** The row's id, which `since` counts in (absent from the old PHP server). */
+  id?: number
   type: 'flow' | 'undo' | 'clear'
   data: string
   client: number
@@ -23,8 +25,11 @@ export interface UploadApi {
   newBoard(): Promise<Joined>
   joinBoard(hash: string): Promise<Joined>
   addLines(hash: string, client: number, lines: NewLine[]): Promise<void>
-  /** Resolves to the clear's row id, which later polls can start after. */
-  clear(hash: string, client: number): Promise<number>
+  /**
+   * Resolves to the clear's row id, which later polls can start after. `code`
+   * names this clear, so if it's sent again the server knows it's a resend.
+   */
+  clear(hash: string, client: number, code: number): Promise<number>
   /** `owner` is the client that drew the stroke, not necessarily who is undoing it. */
   undo(hash: string, owner: number, code: number): Promise<void>
   getLines(hash: string, client: number, since: number): Promise<{ since: number; lines: LineRow[] }>
@@ -78,8 +83,8 @@ export class HttpUploadApi implements UploadApi {
     await this.post({ action: 'lines', hash, client, linedata: JSON.stringify(lines) })
   }
 
-  async clear(hash: string, client: number): Promise<number> {
-    return (await this.post({ action: 'clear', hash, client })).since
+  async clear(hash: string, client: number, code: number): Promise<number> {
+    return (await this.post({ action: 'clear', hash, client, code })).since
   }
 
   async undo(hash: string, owner: number, code: number): Promise<void> {
@@ -88,7 +93,12 @@ export class HttpUploadApi implements UploadApi {
 
   async getLines(hash: string, client: number, since: number) {
     const reply = await this.post<LineRow[]>({ action: 'getlines', hash, client, since })
-    const lines = reply.data.map((row) => ({ ...row, client: Number(row.client), code: Number(row.code) }))
+    const lines = reply.data.map((row) => ({
+      ...row,
+      id: row.id === undefined ? undefined : Number(row.id),
+      client: Number(row.client),
+      code: Number(row.code),
+    }))
     return { since: Number(reply.since), lines }
   }
 }

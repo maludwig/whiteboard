@@ -2,10 +2,19 @@
 //!
 //! Fixed relative to the PHP version (sqliboard.php):
 //! - parameterized queries instead of hand-built SQL;
-//! - the client counter is bumped and read in one atomic statement;
+//! - client ids are random 32-bit numbers, not a per-board counter that wrapped
+//!   at 256 (and raced, handing two joiners the same id);
 //! - clear deletes and records the clear in one transaction;
 //! - undo only ever deletes a `flow` row (it could delete a clear row before);
-//! - undo rows reach every client, including the owner of the undone stroke.
+//! - undo rows reach every client, including the owner of the undone stroke;
+//! - writes to a board lock its row first, so its line ids commit in order and a
+//!   reader polling from `since` can't skip a row that committed late;
+//! - writes are idempotent, so a client can resend one that seemed to fail.
+//!   Every write is named by (board, client, code): a client numbers its strokes
+//!   and clears, and an undo names the stroke it undoes. A write whose name is
+//!   already in the table is a resend, and is skipped.
+
+use std::collections::HashSet;
 
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
@@ -69,17 +78,11 @@ pub async fn create(db: &MySqlPool) -> Result<Board> {
     bail!("could not find a free board hash")
 }
 
-/// The next client id on this board, wrapping at 256. LAST_INSERT_ID(expr)
-/// returns the new value with the UPDATE itself, so two joiners can't collide.
-pub async fn next_client(db: &MySqlPool, board: &Board) -> Result<u8> {
-    let updated = sqlx::query("UPDATE boards SET clients = LAST_INSERT_ID(MOD(clients + 1, 256)) WHERE id = ?")
-        .bind(board.id)
-        .execute(db)
-        .await?;
-    if updated.rows_affected() != 1 {
-        bail!("board {} disappeared", board.id);
-    }
-    u8::try_from(updated.last_insert_id()).context("client id out of range")
+/// A client id for a page joining a board: random, so ids aren't reused and
+/// (board, client, code) can name a write. Two joiners of one board share an
+/// id about once in four billion.
+pub fn new_client() -> u32 {
+    rand::random()
 }
 
 pub struct NewFlow {
@@ -91,9 +94,15 @@ pub struct NewFlow {
 /// Rows per INSERT; five placeholders each keeps well under MySQL's 65,535 limit.
 const INSERT_CHUNK: usize = 1000;
 
-pub async fn add_flows(db: &MySqlPool, board: &Board, client: u8, flows: &[NewFlow]) -> Result<()> {
+/// Store strokes, skipping any already stored (a resend).
+pub async fn add_flows(db: &MySqlPool, board: &Board, client: u32, flows: &[NewFlow]) -> Result<()> {
     let mut tx = db.begin().await?;
-    for chunk in flows.chunks(INSERT_CHUNK) {
+    lock(&mut tx, board).await?;
+    let fresh = without_repeats(&mut tx, board, client, flows).await?;
+    if fresh.len() < flows.len() {
+        tracing::info!(board = board.hash.as_str(), client, repeats = flows.len() - fresh.len(), "skipped resent strokes");
+    }
+    for chunk in fresh.chunks(INSERT_CHUNK) {
         let mut insert: QueryBuilder<MySql> = QueryBuilder::new("INSERT INTO `lines` (board, client, code, type, json) ");
         insert.push_values(chunk, |mut row, flow| {
             row.push_bind(board.id).push_bind(client).push_bind(flow.code).push_bind("flow").push_bind(&flow.json);
@@ -104,19 +113,62 @@ pub async fn add_flows(db: &MySqlPool, board: &Board, client: u8, flows: &[NewFl
     Ok(())
 }
 
-/// Wipe the board and record the clear. Returns the clear row's id.
-pub async fn clear(db: &MySqlPool, board: &Board, client: u8) -> Result<i64> {
+/// The flows whose (client, code) isn't stored yet. A stored one with the same
+/// JSON is a resend; with different JSON it's a genuine clash (which random
+/// client ids make vanishingly rare), so it's stored anyway.
+async fn without_repeats<'a>(
+    tx: &mut sqlx::Transaction<'_, MySql>,
+    board: &Board,
+    client: u32,
+    flows: &'a [NewFlow],
+) -> Result<Vec<&'a NewFlow>> {
+    let mut stored: HashSet<(u16, String)> = HashSet::new();
+    for chunk in flows.chunks(INSERT_CHUNK) {
+        let mut select: QueryBuilder<MySql> = QueryBuilder::new("SELECT code, json FROM `lines` WHERE board = ");
+        select.push_bind(board.id).push(" AND client = ").push_bind(client);
+        select.push(" AND type = 'flow' AND code IN (");
+        let mut codes = select.separated(", ");
+        for flow in chunk {
+            codes.push_bind(flow.code);
+        }
+        select.push(")");
+        let rows: Vec<(u16, String)> = select.build_query_as().fetch_all(&mut **tx).await?;
+        stored.extend(rows);
+    }
+    let fresh = flows.iter().filter(|flow| !stored.contains(&(flow.code, flow.json.clone()))).collect();
+    Ok(fresh)
+}
+
+/// Wipe the board and record the clear. Returns the clear row's id. With a
+/// `code`, a resend is answered with the first clear's id and wipes nothing,
+/// so it can't take strokes drawn since. (Unless someone else cleared in
+/// between, deleting the first clear's row: then it clears again.)
+pub async fn clear(db: &MySqlPool, board: &Board, client: u32, code: Option<u16>) -> Result<i64> {
     let mut tx = db.begin().await?;
+    lock(&mut tx, board).await?;
+    if let Some(code) = code
+        && let Some(id) = find_marker(&mut tx, board, client, code, "clear").await?
+    {
+        tx.commit().await?;
+        return Ok(id);
+    }
     sqlx::query("DELETE FROM `lines` WHERE board = ?").bind(board.id).execute(&mut *tx).await?;
-    let id = insert_marker(&mut tx, board, client, 0, "clear").await?;
+    let id = insert_marker(&mut tx, board, client, code.unwrap_or(0), "clear").await?;
     tx.commit().await?;
     Ok(id)
 }
 
 /// Remove the newest stroke `client` drew with `code`, and record the undo.
-/// `client` is the stroke's owner, which isn't necessarily who asked.
-pub async fn undo(db: &MySqlPool, board: &Board, client: u8, code: u16) -> Result<()> {
+/// `client` is the stroke's owner, which isn't necessarily who asked. A stroke
+/// is only ever undone once (redo stores it again under a new code), so an
+/// undo already recorded is a resend.
+pub async fn undo(db: &MySqlPool, board: &Board, client: u32, code: u16) -> Result<()> {
     let mut tx = db.begin().await?;
+    lock(&mut tx, board).await?;
+    if find_marker(&mut tx, board, client, code, "undo").await?.is_some() {
+        tx.commit().await?;
+        return Ok(());
+    }
     sqlx::query(
         "DELETE FROM `lines` WHERE board = ? AND client = ? AND code = ? AND type = 'flow' ORDER BY id DESC LIMIT 1",
     )
@@ -130,10 +182,38 @@ pub async fn undo(db: &MySqlPool, board: &Board, client: u8, code: u16) -> Resul
     Ok(())
 }
 
+/// Hold the board's row until `tx` ends. Ids are handed out at insert time, so
+/// without this two writers could commit ids 11 then 10, and a reader that had
+/// already seen 11 would never fetch 10. Other boards' writes don't wait.
+async fn lock(tx: &mut sqlx::Transaction<'_, MySql>, board: &Board) -> Result<()> {
+    sqlx::query("SELECT id FROM boards WHERE id = ? FOR UPDATE").bind(board.id).execute(&mut **tx).await?;
+    Ok(())
+}
+
+/// The id of the undo or clear row named (board, client, code), if stored.
+async fn find_marker(
+    tx: &mut sqlx::Transaction<'_, MySql>,
+    board: &Board,
+    client: u32,
+    code: u16,
+    kind: &str,
+) -> Result<Option<i64>> {
+    let id: Option<i32> = sqlx::query_scalar(
+        "SELECT id FROM `lines` WHERE board = ? AND client = ? AND code = ? AND type = ? ORDER BY id DESC LIMIT 1",
+    )
+    .bind(board.id)
+    .bind(client)
+    .bind(code)
+    .bind(kind)
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(id.map(i64::from))
+}
+
 async fn insert_marker(
     tx: &mut sqlx::Transaction<'_, MySql>,
     board: &Board,
-    client: u8,
+    client: u32,
     code: u16,
     kind: &str,
 ) -> Result<i64> {
@@ -149,11 +229,14 @@ async fn insert_marker(
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Line {
+    /// The row id, so a client reading the board two ways at once (a poll
+    /// and a WebSocket) can skip rows it already has.
+    pub id: i64,
     #[serde(rename = "type")]
     pub kind: String,
     /// The stroke JSON as a string; the client JSON.parses it.
     pub data: String,
-    pub client: u8,
+    pub client: u32,
     pub code: u16,
 }
 
@@ -161,8 +244,8 @@ pub struct Line {
 /// A client's own flow and clear rows are skipped (it made them), but undo rows
 /// go to everyone: when someone undoes your stroke, the row carries your client
 /// id, and you are exactly who needs it. Echoing your own undo back is harmless.
-pub async fn lines_since(db: &MySqlPool, board: &Board, me: u8, since: i64) -> Result<(i64, Vec<Line>)> {
-    let rows: Vec<(i32, String, String, u8, u16)> = sqlx::query_as(
+pub async fn lines_since(db: &MySqlPool, board: &Board, me: u32, since: i64) -> Result<(i64, Vec<Line>)> {
+    let rows: Vec<(i32, String, String, u32, u16)> = sqlx::query_as(
         "SELECT id, CAST(type AS CHAR), json, client, code FROM `lines`
          WHERE board = ? AND id > ? AND (client <> ? OR type = 'undo') ORDER BY id",
     )
@@ -172,7 +255,10 @@ pub async fn lines_since(db: &MySqlPool, board: &Board, me: u8, since: i64) -> R
     .fetch_all(db)
     .await?;
     let next = rows.last().map_or(since, |row| since.max(i64::from(row.0)));
-    let lines = rows.into_iter().map(|(_, kind, data, client, code)| Line { kind, data, client, code }).collect();
+    let lines = rows
+        .into_iter()
+        .map(|(id, kind, data, client, code)| Line { id: i64::from(id), kind, data, client, code })
+        .collect();
     Ok((next, lines))
 }
 

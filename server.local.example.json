@@ -3,7 +3,7 @@
   "base_path": "/whiteboard",
   "database_url": "mysql://whiteboard:change-me@127.0.0.1:3306/whiteboard",
   "log": "info",
-  "static_dir": "C:/Users/you/dev/whiteboard/static_frontend",
+  "static_dir": "C:/Users/you/dev/whiteboard/wb_web/dist",
   "admin_token": "change-me-to-a-long-random-string",
   "stream_logs": false
 }
