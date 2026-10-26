@@ -1,0 +1,6 @@
+{
+  "listen": "127.0.0.1:8080",
+  "base_path": "/whiteboard",
+  "database_url": "mysql://whiteboard:change-me@127.0.0.1:3306/whiteboard",
+  "log": "info"
+}

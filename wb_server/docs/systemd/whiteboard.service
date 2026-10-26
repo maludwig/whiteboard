@@ -1,0 +1,64 @@
+# The whiteboard server. Install as /etc/systemd/system/whiteboard.service;
+# see ../INSTALLING_AS_A_SERVICE.md.
+
+[Unit]
+Description=Whiteboard server (wb_server)
+Documentation=https://github.com/maludwig/whiteboard/blob/master/wb_server/docs/INSTALLING_AS_A_SERVICE.md
+# Whichever database runs here (Debian/Ubuntu's MySQL is mysql.service);
+# ordering on a unit that doesn't exist is ignored.
+After=network-online.target mariadb.service mysql.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStart=/usr/local/bin/whiteboard serve
+
+# A throwaway user, made up for each run: owns nothing, can write nothing.
+DynamicUser=yes
+# The config (with the database password) stays root-only, mode 600; systemd
+# hands the service a private read-only copy at start. So after editing it,
+# restart the service.
+LoadCredential=server.json:/etc/whiteboard/server.json
+Environment=WHITEBOARD_CONFIG=%d/server.json
+
+# SIGTERM is a graceful shutdown: requests in flight finish, WebSockets are
+# told to reconnect.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=2
+
+# It only needs to listen, reach MariaDB, and log to stdout (the journal).
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+
+# It uses tens of MB; these stop a leak (or worse) taking the whole 1 GB box.
+MemoryHigh=200M
+MemoryMax=300M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
