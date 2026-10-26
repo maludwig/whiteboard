@@ -38,11 +38,11 @@ exist), otherwise `/etc/whiteboard/server.json`, or
 
 | Key | Default | |
 |---|---|---|
-| `listen` | `127.0.0.1:8080` | Address to bind. Keep it on loopback behind Apache in production. |
+| `listen` | `127.0.0.1:8080` | Address to bind. Keep it on loopback behind a web server in production. |
 | `base_path` | `/whiteboard` | URL prefix for everything the server answers. |
 | `database_url` | (required) | `mysql://user:password@host:3306/whiteboard` |
 | `log` | `info` | A [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html), e.g. `info,tower_http=debug`. |
-| `static_dir` | none | Serve this directory's files under `base_path/` (local development; production uses Apache). |
+| `static_dir` | none | Serve this directory's files under `base_path/`: point it at `wb_web/dist` and the server serves the page too. |
 | `admin_token` | none | Bearer token for `base_path/api/admin/...`. Unset, those routes are 404. |
 | `stream_logs` | `false` | Have the frontend send its log lines here (logged under target `client`). |
 
@@ -146,3 +146,11 @@ then at `http://localhost:8080/whiteboard/`, serving `wb_web/dist` (run
 
 On the host, point `WHITEBOARD_CONFIG` at a config (e.g. `../server.local.json`)
 and run `cargo run -- serve`.
+
+## Running in production
+
+As a sandboxed systemd service behind Apache or nginx:
+[`docs/INSTALLING_AS_A_SERVICE.md`](docs/INSTALLING_AS_A_SERVICE.md) covers
+building, the database, the config, the unit
+([`docs/systemd/`](docs/systemd)), the reverse proxy (WebSockets included), and
+CDNs, for Debian/Ubuntu and Amazon Linux/RHEL.
