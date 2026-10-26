@@ -1,4 +1,6 @@
+mod admin;
 mod boards;
+mod clientlog;
 mod config;
 mod db;
 mod server;

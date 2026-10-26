@@ -7,3 +7,4 @@
 # Local-only credentials
 /.env
 /docker/server.dev.json
+/server.local.json

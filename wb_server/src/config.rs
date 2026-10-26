@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 pub const CONFIG_ENV: &str = "WHITEBOARD_CONFIG";
 
 /// Every setting's name, in the order `Config` declares them.
-pub const KEYS: &[&str] = &["listen", "base_path", "database_url", "log", "static_dir"];
+pub const KEYS: &[&str] = &["listen", "base_path", "database_url", "log", "static_dir", "admin_token", "stream_logs"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +35,13 @@ pub struct Config {
     /// development; in production Apache serves the frontend).
     #[serde(default)]
     pub static_dir: Option<PathBuf>,
+    /// Bearer token for `{base_path}/api/admin/...`. Unset, the admin API doesn't exist.
+    #[serde(default)]
+    pub admin_token: Option<String>,
+    /// Have the frontend send its log lines to `{base_path}/api/log`, which
+    /// writes them to this server's log (target `client`). For debugging.
+    #[serde(default)]
+    pub stream_logs: bool,
 }
 
 fn default_listen() -> SocketAddr {
@@ -63,6 +70,9 @@ impl Config {
         }
         tracing_subscriber::EnvFilter::try_new(&self.log)
             .with_context(|| format!("log must be a tracing filter like \"info\" or \"info,sqlx=warn\"; got {:?}", self.log))?;
+        if self.admin_token.as_deref() == Some("") {
+            bail!("admin_token must not be empty; leave it out to disable the admin API");
+        }
         Ok(())
     }
 
@@ -85,14 +95,29 @@ fn check_key(key: &str) -> Result<()> {
 /// as written (unset keys stay unset, so they keep following the defaults).
 /// Fails, without producing anything, if the result would not be a valid config.
 ///
-/// Every setting is currently a JSON string, so `value` is stored as one.
+/// `value` is stored as a JSON string if that makes a valid config, and
+/// otherwise as the JSON it spells (so `true` becomes a boolean).
 pub fn with_setting(json: &str, key: &str, value: &str) -> Result<String> {
     check_key(key)?;
-    let mut doc: Map<String, Value> = serde_json::from_str(json)?;
-    doc.insert(key.to_owned(), Value::String(value.to_owned()));
-    let updated = serde_json::to_string_pretty(&doc)? + "\n";
-    Config::parse(&updated).context("the config would be invalid after this change")?;
-    Ok(updated)
+    let doc: Map<String, Value> = serde_json::from_str(json)?;
+    let as_string = updated_doc(&doc, key, Value::String(value.to_owned()))?;
+    let string_error = match Config::parse(&as_string) {
+        Ok(_) => return Ok(as_string),
+        Err(e) => e,
+    };
+    if let Ok(literal) = serde_json::from_str::<Value>(value) {
+        let as_literal = updated_doc(&doc, key, literal)?;
+        if Config::parse(&as_literal).is_ok() {
+            return Ok(as_literal);
+        }
+    }
+    Err(string_error.context("the config would be invalid after this change"))
+}
+
+fn updated_doc(doc: &Map<String, Value>, key: &str, value: Value) -> Result<String> {
+    let mut doc = doc.clone();
+    doc.insert(key.to_owned(), value);
+    Ok(serde_json::to_string_pretty(&doc)? + "\n")
 }
 
 /// Where the config file is, and whether `WHITEBOARD_CONFIG` chose it.
@@ -195,6 +220,19 @@ mod tests {
         assert_eq!(config.base_path, "/whiteboard");
         assert_eq!(config.log, "info");
         assert_eq!(config.static_dir, None);
+        assert_eq!(config.admin_token, None);
+        assert!(!config.stream_logs);
+    }
+
+    #[test]
+    fn set_stores_booleans_as_booleans() {
+        let updated = with_setting(MINIMAL, "stream_logs", "true").unwrap();
+        assert!(Config::parse(&updated).unwrap().stream_logs);
+        assert!(updated.contains("\"stream_logs\": true"), "{updated}");
+        assert!(with_setting(MINIMAL, "stream_logs", "yes").is_err());
+        // Strings that happen to look like JSON stay strings.
+        let updated = with_setting(MINIMAL, "admin_token", "12345").unwrap();
+        assert_eq!(Config::parse(&updated).unwrap().admin_token.as_deref(), Some("12345"));
     }
 
     #[test]
@@ -261,6 +299,7 @@ mod tests {
         assert!(with_setting(MINIMAL, "base_path", "/trailing/").is_err());
         assert!(with_setting(MINIMAL, "databse_url", "typo").is_err());
         assert!(with_setting(MINIMAL, "log", "info,sqlx=loud").is_err());
+        assert!(with_setting(MINIMAL, "admin_token", "").is_err());
         assert!(with_setting("[]", "log", "info").is_err());
     }
 }

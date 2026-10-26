@@ -1,0 +1,8 @@
+{
+  "listen": "0.0.0.0:8080",
+  "base_path": "/whiteboard",
+  "database_url": "mysql://whiteboard:change-me@db:3306/whiteboard",
+  "log": "info",
+  "static_dir": "/whiteboard/static_frontend",
+  "stream_logs": false
+}

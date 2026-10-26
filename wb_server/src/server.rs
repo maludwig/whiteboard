@@ -1,6 +1,7 @@
 //! The HTTP server: shared state, routes, and startup.
 
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -13,12 +14,13 @@ use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+use tokio::sync::Notify;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 use crate::config::Config;
-use crate::upload;
+use crate::{admin, clientlog, upload};
 
 /// How long the status check waits on the database before calling it down.
 const DB_CHECK_TIMEOUT: Duration = Duration::from_secs(2);
@@ -27,6 +29,10 @@ const DB_CHECK_TIMEOUT: Duration = Duration::from_secs(2);
 pub struct AppState {
     pub db: MySqlPool,
     pub db_check_timeout: Duration,
+    pub admin_token: Option<String>,
+    /// Notified to shut the server down gracefully (see `admin::die`).
+    pub shutdown: Arc<Notify>,
+    pub stream_logs: bool,
 }
 
 /// All routes, mounted under `base_path`: the API at `{base_path}/api/...`, and,
@@ -35,11 +41,16 @@ pub fn router(base_path: &str, static_dir: Option<&Path>, state: AppState) -> Ro
     let api = Router::new()
         .route("/status", get(status))
         .route("/upload", post(upload::upload))
+        .route("/admin/die", post(admin::die))
+        .route("/client-config", get(clientlog::client_config))
+        .route("/log", post(clientlog::log))
         .layer(middleware::map_response(no_store));
     let mut app = Router::new().nest(&format!("{base_path}/api"), api);
     if let Some(dir) = static_dir {
         app = app
             .nest_service(base_path, ServeDir::new(dir))
+            .layer(middleware::map_response(revalidate))
+            .layer(middleware::map_response(isolate))
             .layer(middleware::from_fn_with_state(base_path.to_owned(), add_trailing_slash));
     }
     app.layer(TraceLayer::new_for_http()).with_state(state)
@@ -48,6 +59,26 @@ pub fn router(base_path: &str, static_dir: Option<&Path>, state: AppState) -> Ro
 /// API responses are never cacheable, by CloudFront or anyone else.
 async fn no_store(mut response: Response) -> Response {
     response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
+/// Static files may be cached but must be revalidated, so an edited file is
+/// picked up on the next load. Responses that set their own policy keep it.
+async fn revalidate(mut response: Response) -> Response {
+    let headers = response.headers_mut();
+    if !headers.contains_key(header::CACHE_CONTROL) {
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    }
+    response
+}
+
+/// Makes served pages cross-origin isolated, which gets them a finer
+/// performance.now() for timing. Safe while the frontend loads nothing from
+/// other origins (the single-file wb_web build doesn't).
+async fn isolate(mut response: Response) -> Response {
+    let headers = response.headers_mut();
+    headers.insert("cross-origin-opener-policy", HeaderValue::from_static("same-origin"));
+    headers.insert("cross-origin-embedder-policy", HeaderValue::from_static("require-corp"));
     response
 }
 
@@ -63,6 +94,15 @@ async fn add_trailing_slash(State(base_path): State<String>, request: Request, n
 struct Status {
     now: String,
     db: &'static str,
+    version: &'static str,
+    built: String,
+}
+
+/// When this binary was compiled (stamped by build.rs).
+fn build_time() -> String {
+    let secs: i64 = env!("WB_BUILD_UNIX_TIME").parse().unwrap_or(0);
+    chrono::DateTime::from_timestamp(secs, 0)
+        .map_or_else(String::new, |t| t.to_rfc3339_opts(SecondsFormat::Secs, true))
 }
 
 /// Liveness plus a database round trip. Answers 503 when the database is
@@ -81,7 +121,7 @@ async fn status(State(state): State<AppState>) -> impl IntoResponse {
             (StatusCode::SERVICE_UNAVAILABLE, "error")
         }
     };
-    (code, Json(Status { now, db }))
+    (code, Json(Status { now, db, version: env!("CARGO_PKG_VERSION"), built: build_time() }))
 }
 
 pub async fn serve(config: Config) -> Result<()> {
@@ -102,20 +142,33 @@ pub async fn serve(config: Config) -> Result<()> {
         }
         tracing::info!("serving files from {} at {}/", dir.display(), config.base_path);
     }
-    let state = AppState { db, db_check_timeout: DB_CHECK_TIMEOUT };
+    if config.admin_token.is_some() {
+        tracing::info!("admin API enabled at {}/api/admin/", config.base_path);
+    }
+    let shutdown = Arc::new(Notify::new());
+    let state = AppState {
+        db,
+        db_check_timeout: DB_CHECK_TIMEOUT,
+        admin_token: config.admin_token.clone(),
+        shutdown: shutdown.clone(),
+        stream_logs: config.stream_logs,
+    };
+    if config.stream_logs {
+        tracing::info!("streaming frontend logs into this log (target \"client\")");
+    }
     let app = router(&config.base_path, config.static_dir.as_deref(), state);
 
     let listener = tokio::net::TcpListener::bind(config.listen)
         .await
         .with_context(|| format!("could not listen on {}", config.listen))?;
     tracing::info!("listening on http://{}{}/", config.listen, config.base_path);
-    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await?;
+    axum::serve(listener, app).with_graceful_shutdown(shutdown_signal(shutdown)).await?;
     tracing::info!("shut down");
     Ok(())
 }
 
-/// Ctrl-C anywhere, or SIGTERM on Unix (what systemd sends on stop).
-async fn shutdown_signal() {
+/// Ctrl-C anywhere, SIGTERM on Unix (what systemd sends on stop), or the admin API.
+async fn shutdown_signal(requested: Arc<Notify>) {
     let ctrl_c = async {
         tokio::signal::ctrl_c().await.ok();
     };
@@ -134,8 +187,26 @@ async fn shutdown_signal() {
     tokio::select! {
         _ = ctrl_c => {}
         _ = terminate => {}
+        _ = requested.notified() => {}
     }
     tracing::info!("shutting down");
+}
+
+/// State for router tests: a pool aimed at a port nothing listens on, so every
+/// query fails. Swap in a real pool with `AppState { db, ..test_state(None) }`.
+#[cfg(test)]
+pub fn test_state(admin_token: Option<&str>) -> AppState {
+    let db = MySqlPoolOptions::new()
+        .acquire_timeout(Duration::from_millis(300))
+        .connect_lazy("mysql://nobody:nothing@127.0.0.1:1/none")
+        .unwrap();
+    AppState {
+        db,
+        db_check_timeout: Duration::from_millis(300),
+        admin_token: admin_token.map(str::to_owned),
+        shutdown: Arc::new(Notify::new()),
+        stream_logs: false,
+    }
 }
 
 #[cfg(test)]
@@ -144,15 +215,6 @@ mod tests {
     use axum::body::Body;
     use axum::http::Request;
     use tower::ServiceExt;
-
-    /// A pool aimed at a port nothing listens on, so every query fails.
-    fn unreachable_state() -> AppState {
-        let db = MySqlPoolOptions::new()
-            .acquire_timeout(Duration::from_millis(300))
-            .connect_lazy("mysql://nobody:nothing@127.0.0.1:1/none")
-            .unwrap();
-        AppState { db, db_check_timeout: Duration::from_millis(300) }
-    }
 
     async fn get(app: Router, uri: &str) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
         let response = app.oneshot(Request::get(uri).body(Body::empty()).unwrap()).await.unwrap();
@@ -164,13 +226,15 @@ mod tests {
 
     #[tokio::test]
     async fn status_reports_a_down_database_as_503() {
-        let app = router("/whiteboard", None, unreachable_state());
+        let app = router("/whiteboard", None, test_state(None));
         let (code, headers, body) = get(app, "/whiteboard/api/status").await;
 
         assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(headers[header::CACHE_CONTROL], "no-store");
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["db"], "error");
+        assert_eq!(json["version"], env!("CARGO_PKG_VERSION"));
+        assert!(json["built"].as_str().unwrap().ends_with('Z'), "{json}");
 
         // Like 2026-10-25T18:34:59.123Z: UTC, millisecond precision.
         let now = json["now"].as_str().unwrap();
@@ -181,10 +245,10 @@ mod tests {
 
     #[tokio::test]
     async fn routes_live_under_base_path() {
-        let (code, _, _) = get(router("/whiteboard", None, unreachable_state()), "/api/status").await;
+        let (code, _, _) = get(router("/whiteboard", None, test_state(None)), "/api/status").await;
         assert_eq!(code, StatusCode::NOT_FOUND);
 
-        let (code, _, _) = get(router("/elsewhere", None, unreachable_state()), "/elsewhere/api/status").await;
+        let (code, _, _) = get(router("/elsewhere", None, test_state(None)), "/elsewhere/api/status").await;
         assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
     }
 
@@ -194,15 +258,18 @@ mod tests {
         std::fs::create_dir_all(dir.join("js")).unwrap();
         std::fs::write(dir.join("index.html"), "<p>board</p>").unwrap();
         std::fs::write(dir.join("js").join("app.js"), "var x;").unwrap();
-        let app = router("/whiteboard", Some(&dir), unreachable_state());
+        let app = router("/whiteboard", Some(&dir), test_state(None));
 
         let (code, headers, _) = get(app.clone(), "/whiteboard").await;
         assert_eq!(code, StatusCode::PERMANENT_REDIRECT);
         assert_eq!(headers[header::LOCATION], "/whiteboard/");
 
-        let (code, _, body) = get(app.clone(), "/whiteboard/").await;
+        let (code, headers, body) = get(app.clone(), "/whiteboard/").await;
         assert_eq!(code, StatusCode::OK);
         assert_eq!(body, b"<p>board</p>");
+        assert_eq!(headers[header::CACHE_CONTROL], "no-cache");
+        assert_eq!(headers["cross-origin-opener-policy"], "same-origin");
+        assert_eq!(headers["cross-origin-embedder-policy"], "require-corp");
         let (code, _, body) = get(app.clone(), "/whiteboard/js/app.js").await;
         assert_eq!(code, StatusCode::OK);
         assert_eq!(body, b"var x;");

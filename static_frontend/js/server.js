@@ -81,7 +81,9 @@ var svr = {
 		svr.clientid = clientid;
 		svr.ticker = setInterval(svr.getLines,1000);
 		svr.statusUpdate(ServerStatus.ONLINE);
+		remoteLog("online on board " + hash + " as client " + clientid);
 		svr.online();
+		svr.getLines(); // don't wait a whole interval for the first batch
 	},
 	isReady: function(readymask) {
 		readymask = typeof readymask !== 'undefined' ? readymask : ServerStatus.ONLINE;
@@ -141,7 +143,18 @@ var svr = {
 		var newFlow;
 		var line;
 		var first = svr.since === 0;
+		var since = svr.since;
+		var asked = new Date().getTime();
 		svr.post("getlines",{},function(lines){
+			// Empty polls happen every second, so only the first poll and polls
+			// that bring rows get logged.
+			var logIt = first || lines.length > 0;
+			var drawing = new Date().getTime();
+			if(logIt) {
+				remoteLog("getlines since " + since + ": request started", asked);
+				remoteLog("getlines since " + since + ": got " + lines.length + " rows in " + (drawing - asked) + "ms", drawing);
+				remoteLog("drawing " + lines.length + " rows: started", drawing);
+			}
 			for(var idx in lines) {
 				line = lines[idx];
 				line.code = num(line.code);
@@ -163,6 +176,9 @@ var svr = {
 						svr.clear();
 					}
 				}
+			}
+			if(logIt) {
+				remoteLog("drawing " + lines.length + " rows: ended in " + (new Date().getTime() - drawing) + "ms");
 			}
 		});
 	},

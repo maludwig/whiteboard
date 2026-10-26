@@ -47,6 +47,7 @@ struct LineIn {
 pub async fn upload(State(state): State<AppState>, Form(form): Form<UploadForm>) -> Result<Json<Reply>, ApiError> {
     let db = &state.db;
     let action = required(&form.action, "action")?;
+    tracing::debug!(action, hash = form.hash.as_deref(), client = form.client.as_deref(), "upload");
 
     if action == "new" {
         let board = boards::create(db).await?;
@@ -133,8 +134,6 @@ impl IntoResponse for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use axum::Router;
     use axum::body::Body;
     use axum::http::{Request, header};
@@ -142,10 +141,10 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::server::router;
+    use crate::server::{router, test_state};
 
     fn app(pool: MySqlPool) -> Router {
-        router("/whiteboard", None, AppState { db: pool, db_check_timeout: Duration::from_secs(2) })
+        router("/whiteboard", None, AppState { db: pool, ..test_state(None) })
     }
 
     async fn post(app: &Router, fields: &[(&str, &str)]) -> (StatusCode, Value) {
